@@ -3,7 +3,8 @@
 import { findWebFont } from "./catalog.js";
 import { FONT_FILES, type CatalogFileTuple } from "./catalog-files.js";
 import { hasLocalFontAccess, localFontsPermission, queryLocalFonts, type LocalFontData } from "./detect.js";
-import { embeddableOf, parseFontInfo, type Embedding, type FontFormat } from "./sfnt.js";
+import { instanceFont, instanceLocation, locationKey } from "./instance.js";
+import { embeddableOf, parseAxes, parseFontInfo, type Embedding, type FontFormat } from "./sfnt.js";
 import { remoteAllowed } from "./shared.js";
 
 // The google/fonts commit gen-catalog read (see catalog-files.ts); move both together.
@@ -82,6 +83,8 @@ export interface FontFile {
   /** Remote only: the URL and the license directory. */
   url?: string;
   license?: CatalogFamilyFiles["license"];
+  /** Set on a static instance made with `instance: true`: the source URL ("local:<PostScript name>" for a local font). */
+  instancedFrom?: string;
 }
 
 export interface GetFontFileOptions {
@@ -95,6 +98,8 @@ export interface GetFontFileOptions {
   gesture?: boolean;
   /** Byte fetcher for tests or a host proxy. */
   fetchBytes?: (url: string) => Promise<Uint8Array | null>;
+  /** Variable file: return a static instance pinned at weight/italic (loads HarfBuzz once). */
+  instance?: boolean;
 }
 
 // --- local --------------------------------------------------------------------------------------
@@ -245,10 +250,45 @@ function describe(bytes: Uint8Array, family: string, source: FontFile["source"],
  */
 export async function getFontFile(family: string, opts: GetFontFileOptions = {}): Promise<FontFile | null> {
   const o = { weight: 400, italic: false, ...opts };
-  if (o.local !== false) {
-    const f = await localFile(family, o);
-    if (f) return f;
+  let f: FontFile | null = null;
+  if (o.local !== false) f = await localFile(family, o);
+  if (!f && o.remote !== false) f = await remoteFile(family, o);
+  return f && o.instance && f.variable ? instanceFile(f, o.weight, o.italic) : f;
+}
+
+// --- static instances ---------------------------------------------------------------------------
+
+const instances = new Map<string, Promise<FontFile | null>>();
+
+/** A synthetic Cache Storage key for an instance; never fetched. */
+const instanceCacheUrl = (key: string) => `https://fontshelf.invalid/instance?k=${encodeURIComponent(key)}`;
+
+/** The static instance of a variable FontFile, cached by source and axis location; the source itself when instancing fails. */
+async function instanceFile(f: FontFile, weight: number, italic: boolean): Promise<FontFile> {
+  const from = f.url ?? `local:${f.postscriptName ?? f.fullName ?? f.family}:${f.bytes.byteLength}`;
+  const loc = instanceLocation(parseAxes(f.bytes, f.index), weight, italic);
+  const key = `${from}#${locationKey(loc)}`;
+  let run = instances.get(key);
+  if (!run) {
+    run = (async () => {
+      // Only catalog instances go to Cache Storage; installed fonts stay in memory.
+      let bytes = f.url ? await cacheGet(instanceCacheUrl(key)) : null;
+      if (!bytes) {
+        const inst = await instanceFont(f.bytes, { weight, italic, index: f.index, family: f.family });
+        if (!inst) return null;
+        bytes = inst.bytes;
+        if (f.url) await cachePut(instanceCacheUrl(key), bytes);
+      }
+      const out = describe(bytes, f.family, f.source);
+      if (!out) return null;
+      out.weight = loc.wght ?? out.weight;
+      if (f.url) out.url = f.url;
+      if (f.license) out.license = f.license;
+      out.instancedFrom = f.url ?? `local:${f.postscriptName ?? f.family}`;
+      return out;
+    })();
+    instances.set(key, run);
+    run.then((r) => { if (!r) instances.delete(key); }, () => instances.delete(key));
   }
-  if (o.remote !== false) return remoteFile(family, o);
-  return null;
+  return (await run.catch(() => null)) ?? f;
 }

@@ -18,14 +18,15 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/copy-wasm.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "gen:catalog": "node scripts/gen-catalog.mjs",
-    "prepare": "tsc -p tsconfig.json"
+    "prepare": "tsc -p tsconfig.json && node scripts/copy-wasm.mjs"
   },
   "devDependencies": {
     "happy-dom": "^20.10.6",
+    "harfbuzzjs": "1.6.4",
     "typescript": "^7.0.2",
     "vitest": "^4.0.0"
   }

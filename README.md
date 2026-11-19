@@ -77,6 +77,7 @@ interface GetFontFileOptions {
   remote?: boolean;    // try the catalog download (default true, still needs remoteAllowed())
   gesture?: boolean;   // called from a click: queryLocalFonts may prompt
   fetchBytes?: (url: string) => Promise<Uint8Array | null>;  // tests or a host proxy
+  instance?: boolean;  // variable file: return a static instance at weight/italic (default false)
 }
 
 interface FontFile {
@@ -95,6 +96,7 @@ interface FontFile {
   index: number;                        // face index inside a .ttc
   url?: string;                         // remote only
   license?: "ofl" | "apache" | "ufl";   // remote only
+  instancedFrom?: string;               // instance: true only; source URL, or "local:<PostScript name>"
 }
 ```
 
@@ -112,11 +114,58 @@ interface FontFile {
   document; `"editable"` and `"installable"` allow editing too.
 - **Variable fonts**: many catalog families ship one variable file (`NotoSansJP[wght].ttf`).
   Its default instance can be far from 400 (Noto Sans JP defaults to Thin), so an engine
-  that cannot apply `wght` variations should instance it first.
+  that cannot apply variations (libass, a PDF writer, a wasm slide engine) should pass
+  `instance: true`. See [Static instances](#static-instances-of-variable-fonts).
+
+### Static instances of variable fonts
+
+`getFontFile(family, { weight, italic, instance: true })` turns a variable file (catalog or
+installed, such as Skia or SF Pro) into a static font, using HarfBuzz's instancer:
+
+- `wght` is pinned at the requested weight, clamped to the axis range; `ital` at 1 when
+  italic is asked and the font has that axis, else 0; `slnt` at its full lean for italic only
+  without an `ital` axis, else 0. Every other axis (`wdth`, `opsz`, ...) stays at its default.
+  All glyphs and OpenType layout are kept.
+- The result has `variable: false`, `weight` the pinned number, `instancedFrom` the source,
+  `index: 0`. Its names are rewritten so engines find it by the catalog family: name ID 1 and
+  16 are the family, ID 2 the RIBBI style, ID 17 the full style, full name and PostScript name
+  per instance (`Noto Sans JP Bold`, `NotoSansJP-Bold`), and the OS/2 fsSelection and head
+  macStyle bold/italic bits match. HarfBuzz itself sets OS/2 usWeightClass and drops
+  fvar/gvar/avar/HVAR.
+- Instances are cached by source and axis location: in memory, and catalog instances also in
+  Cache Storage (`fontshelf-files-v1`, under a synthetic `https://fontshelf.invalid/...` key)
+  so they survive a reload. Installed fonts are only kept in memory.
+- A static file comes back unchanged. If HarfBuzz cannot load or fails, the variable file
+  comes back as without `instance` (`variable: true`), so check `variable` when it matters.
+
+Noto Sans JP (9.6 MB) instances to 5.8 MB in about 150 ms in Node on an Intel i9 laptop; a
+small Latin family takes under 10 ms. The wasm compiles in about 40 ms on first use.
+
+#### The HarfBuzz wasm asset
+
+`dist/harfbuzz-subset.wasm` (683 KB, 275 KB gzipped; harfbuzzjs 1.6.4, MIT, a HarfBuzz build
+under the Old MIT license, see `dist/harfbuzz-subset.LICENSE.txt`) is fetched only the first
+time a variable file is instanced. The default URL is
+`new URL("./harfbuzz-subset.wasm", import.meta.url)`, which Vite, webpack 5, Rollup and
+Parcel builds pick up and emit as an asset on their own. Hosts that do not bundle copy the file
+into their static directory and say where it is. The Vite dev server pre-bundles
+dependencies and can lose the relative file there: add `fontshelf` to `optimizeDeps.exclude`,
+or set the URL.
+
+```ts
+setHarfbuzzWasm("/assets/fontshelf/harfbuzz-subset.wasm");  // a URL (resolved by fetch)
+setHarfbuzzWasm(bytes);   // or the bytes (Node, tests): Uint8Array | ArrayBuffer
+setHarfbuzzWasm(null);    // back to the default URL
+```
 
 Lower level:
 
 ```ts
+instanceFont(bytes, { weight?, italic?, index?, family? }): Promise<FontInstance | null>
+// { bytes, location: { wght: 700 }, weight, italic }; null for a static font or a HarfBuzz failure
+instanceLocation(axes, weight?, italic?): Record<string, number>   // the pure axis choice above
+instanceStyleName(weight, italic): string                          // "SemiBold Italic", "Weight450"
+parseAxes(bytes, index?): FontAxis[]                               // fvar axes: { tag, min, default, max }
 catalogFiles(family): CatalogFamilyFiles | undefined
 // { family, license, dir: "ofl/notosansjp", files: CatalogFile[] }
 // CatalogFile = { file, url, weight: [min, max], italic, variable, bytes }  (bytes = size, for warnings)
@@ -251,5 +300,7 @@ npm run build
 
 ## License
 
-MIT. The fonts themselves are under their own licenses (SIL OFL, Apache 2.0 or the Ubuntu
-Font License, given per file as `license`).
+MIT. `dist/harfbuzz-subset.wasm` is HarfBuzz (Old MIT) built by harfbuzzjs (MIT). The fonts
+themselves are under their own licenses (SIL OFL, Apache 2.0 or the Ubuntu Font License,
+given per file as `license`). The test fixture `test/fixtures/Figtree[wght].ttf` is Figtree
+(SIL OFL 1.1, `test/fixtures/Figtree-OFL.txt`).

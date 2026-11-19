@@ -20,8 +20,11 @@ export type { Fetcher } from "./google.js";
 export { getFontState, onFontsChange, addDocumentFonts, isAdded, showInstalledFonts, addRemoteFamily, restoreFonts } from "./registry.js";
 export type { FontState } from "./registry.js";
 
-export { parseFontInfo, embeddingOf, embeddableOf } from "./sfnt.js";
-export type { FontInfo, FontFormat, Embedding } from "./sfnt.js";
+export { parseFontInfo, parseAxes, embeddingOf, embeddableOf } from "./sfnt.js";
+export type { FontInfo, FontFormat, Embedding, FontAxis } from "./sfnt.js";
+
+export { instanceFont, instanceLocation, instanceStyleName, setHarfbuzzWasm } from "./instance.js";
+export type { InstanceOptions, FontInstance } from "./instance.js";
 
 export {
   GOOGLE_FONTS_RAW, catalogFiles, pickCatalogFile, styleOf, pickLocalFace, fetchFontBytes, isFontFileCached, getFontFile,
