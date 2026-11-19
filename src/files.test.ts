@@ -63,7 +63,7 @@ describe("catalog files", () => {
     const c = catalogFiles("noto sans jp")!;
     expect(c.family).toBe("Noto Sans JP");
     expect(c.files[0]).toMatchObject({ file: "NotoSansJP[wght].ttf", variable: true, weight: [100, 900] });
-    expect(c.files[0]!.url).toBe("https://raw.githubusercontent.com/google/fonts/main/ofl/notosansjp/NotoSansJP%5Bwght%5D.ttf");
+    expect(c.files[0]!.url).toBe("https://raw.githubusercontent.com/google/fonts/cc5661d43cd4f9aad5567033a8e15ca28dc35c86/ofl/notosansjp/NotoSansJP%5Bwght%5D.ttf");
     expect(catalogFiles("Nope")).toBeUndefined();
   });
   it("picks the right italic first, then the nearest weight", () => {
@@ -131,7 +131,7 @@ describe("getFontFile", () => {
     expect(fetchBytes).not.toHaveBeenCalled();
     setConsent(true);
     const f = (await getFontFile("tinos", { weight: 700, fetchBytes }))!;
-    expect(fetchBytes).toHaveBeenCalledWith("https://raw.githubusercontent.com/google/fonts/main/ofl/tinos/Tinos-Bold.ttf");
+    expect(fetchBytes).toHaveBeenCalledWith("https://raw.githubusercontent.com/google/fonts/cc5661d43cd4f9aad5567033a8e15ca28dc35c86/ofl/tinos/Tinos-Bold.ttf");
     expect(f).toMatchObject({ source: "remote", family: "Tinos", license: "ofl", embeddable: true, weight: 700 });
     expect(await isFontFileCached(f.url!)).toBe(true);
     setRemoteEnabled(false); // offline reuse needs no network permission

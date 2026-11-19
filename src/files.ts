@@ -6,7 +6,7 @@ import { hasLocalFontAccess, localFontsPermission, queryLocalFonts, type LocalFo
 import { embeddableOf, parseFontInfo, type Embedding, type FontFormat } from "./sfnt.js";
 import { remoteAllowed } from "./shared.js";
 
-export const GOOGLE_FONTS_RAW = "https://raw.githubusercontent.com/google/fonts/main";
+export const GOOGLE_FONTS_RAW = "https://raw.githubusercontent.com/google/fonts/cc5661d43cd4f9aad5567033a8e15ca28dc35c86";
 
 /** One file of a catalog family in the google/fonts repository. */
 export interface CatalogFile {
