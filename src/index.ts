@@ -21,6 +21,7 @@ export { getFontState, onFontsChange, addDocumentFonts, isAdded, showInstalledFo
 export type { FontState } from "./registry.js";
 
 export { parseFontInfo, embeddingOf, embeddableOf } from "./sfnt.js";
+export { renameFace, isNamedAs, faceNames } from "./rename.js";
 export type { FontInfo, FontFormat, Embedding } from "./sfnt.js";
 
 export {

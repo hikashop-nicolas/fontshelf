@@ -2,7 +2,7 @@
 import { vi } from "vitest";
 
 /** A minimal sfnt with OS/2 (fsType, weight, italic), name (family, full, PostScript) and optional fvar. */
-export function makeFont(o: { fsType?: number; weight?: number; italic?: boolean; family?: string; full?: string; ps?: string; fvar?: boolean; cff?: boolean; noOs2?: boolean } = {}): Uint8Array {
+export function makeFont(o: { fsType?: number; weight?: number; italic?: boolean; family?: string; full?: string; ps?: string; fvar?: boolean; cff?: boolean; noOs2?: boolean; names?: [number, string][]; head?: boolean } = {}): Uint8Array {
   const tables: [string, Uint8Array][] = [];
   if (!o.noOs2) {
     const os2 = new Uint8Array(96);
@@ -13,7 +13,15 @@ export function makeFont(o: { fsType?: number; weight?: number; italic?: boolean
     v.setUint16(62, o.italic ? 1 : 0x40);
     tables.push(["OS/2", os2]);
   }
-  const names: [number, string][] = [[1, o.family ?? "Test Sans"], [4, o.full ?? "Test Sans Regular"], [6, o.ps ?? "TestSans-Regular"]];
+  if (o.head) {
+    const head = new Uint8Array(54);
+    const hv = new DataView(head.buffer);
+    hv.setUint32(0, 0x00010000);
+    hv.setUint32(12, 0x5f0f3cf5);
+    hv.setUint16(44, o.italic ? 2 : 0);
+    tables.push(["head", head]);
+  }
+  const names: [number, string][] = o.names ?? [[1, o.family ?? "Test Sans"], [4, o.full ?? "Test Sans Regular"], [6, o.ps ?? "TestSans-Regular"]];
   const strs = names.map(([, s]) => s);
   const strBytes = strs.reduce((n, s) => n + s.length * 2, 0);
   const name = new Uint8Array(6 + names.length * 12 + strBytes);

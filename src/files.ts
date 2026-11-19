@@ -3,6 +3,7 @@
 import { findWebFont } from "./catalog.js";
 import { FONT_FILES, type CatalogFileTuple } from "./catalog-files.js";
 import { hasLocalFontAccess, localFontsPermission, queryLocalFonts, type LocalFontData } from "./detect.js";
+import { renameFace } from "./rename.js";
 import { embeddableOf, parseFontInfo, type Embedding, type FontFormat } from "./sfnt.js";
 import { remoteAllowed } from "./shared.js";
 
@@ -66,6 +67,8 @@ export interface FontFile {
   fullName: string | null;
   /** Index in a .ttc collection. */
   index: number;
+  /** Remote only: the name table was rewritten so the face reads as `family` (see renameFace). */
+  renamed: boolean;
   /** Remote only: the URL and the license. */
   url?: string;
   license?: CatalogFamilyFiles["license"];
@@ -198,14 +201,25 @@ export async function isFontFileCached(url: string): Promise<boolean> {
   return !!(await cacheGet(url));
 }
 
+// Downloaded bytes -> renamed bytes; the cache keeps the file as served.
+const renames = new WeakMap<Uint8Array, Uint8Array>();
+const renamedOf = (bytes: Uint8Array, family: string): Uint8Array => {
+  let r = renames.get(bytes);
+  if (!r) renames.set(bytes, (r = renameFace(bytes, family)));
+  return r;
+};
+
 async function remoteFile(family: string, o: GetFontFileOptions): Promise<FontFile | null> {
   const cat = catalogFiles(family);
   const file = cat && pickCatalogFile(cat.files, o.weight, o.italic);
   if (!cat || !file) return null;
-  const bytes = await fetchFontBytes(file.url, o.fetchBytes);
-  if (!bytes) return null;
+  const raw = await fetchFontBytes(file.url, o.fetchBytes);
+  if (!raw) return null;
+  // A "Klee One SemiBold" file is renamed into "Klee One" so engines find it by family.
+  const bytes = renamedOf(raw, cat.family);
   const out = describe(bytes, cat.family, "remote");
   if (!out) return null;
+  out.renamed = bytes !== raw;
   out.url = file.url;
   out.license = cat.license;
   out.weight = file.weight;
@@ -227,7 +241,7 @@ function describe(bytes: Uint8Array, family: string, source: FontFile["source"],
     embeddable: usable ? embeddableOf(info) : false,
     embedding: info.embedding, noSubsetting: info.noSubsetting,
     weight: info.weight, italic: info.italic, variable: info.variable,
-    postscriptName: info.postscriptName, fullName: info.fullName, index,
+    postscriptName: info.postscriptName, fullName: info.fullName, index, renamed: false,
   };
 }
 

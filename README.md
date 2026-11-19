@@ -93,6 +93,7 @@ interface FontFile {
   postscriptName: string | null;
   fullName: string | null;
   index: number;                        // face index inside a .ttc
+  renamed: boolean;                     // remote only: name table rewritten to read as `family`
   url?: string;                         // remote only
   license?: "ofl" | "apache" | "ufl";   // remote only
 }
@@ -116,9 +117,14 @@ interface FontFile {
 - **Installed variable fonts** (Skia, SF Pro) come back as they are, `variable: true`.
 - **Names**: a file of a family Google Fonts builds from a variable source names the family in
   name ID 16 and the weight in ID 1 (`Noto Sans JP` / `Noto Sans JP Medium`); a family built
-  from static masters may only have ID 1 (`Klee One SemiBold`, `Lato Black`). `parseFontInfo`
-  reads ID 16 first, then ID 1. An engine that matches by ID 1 only (libass) should rename
-  non-RIBBI faces into the family itself.
+  from static masters may only have ID 1 (`Klee One SemiBold`, `Lato Black`). Engines that look
+  a face up by family (libass reads ID 1 or the full name, DeckCraft reads ID 16 then ID 1) would
+  miss those, so a remote file whose ID 1 or ID 16 is not the catalog family comes back renamed
+  (`renamed: true`): ID 1 and 16 = the family, ID 2 = Regular / Bold / Italic / Bold Italic
+  (Bold from weight 600 up), ID 17 = the real style (`SemiBold`, `Black Italic`), full and
+  PostScript names kept, OS/2 usWeightClass kept, fsSelection and head.macStyle set to match,
+  checksums recomputed. Cache Storage keeps the file as served; renaming is cheap and done once
+  per file per session. Installed fonts are never renamed.
 
 Lower level:
 
@@ -131,6 +137,9 @@ fetchFontBytes(url, fetchBytes?): Promise<Uint8Array | null>   // cached, gated
 isFontFileCached(url): Promise<boolean>                          // never hits the network
 parseFontInfo(bytes, index?): FontInfo | null   // format, numFonts, fsType, embedding, noSubsetting,
                                                 // bitmapOnly, weight, italic, variable, names
+renameFace(bytes, family): Uint8Array    // the same bytes when already named, a TTC or junk
+isNamedAs(bytes, family): boolean        // ID 1 (and ID 16 if present) say `family`
+faceNames(bytes): { [nameId]: string }   // English name strings of a single font
 embeddingOf(fsType: number | null): Embedding
 embeddableOf(info): boolean | "restricted"
 styleOf(style: string): { weight: number; italic: boolean }
