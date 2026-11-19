@@ -23,10 +23,10 @@ Nothing leaves the device unless **both** are true:
 
 1. the host enabled remote fonts (`setRemoteEnabled(true)`, or a picker created with
    `remote: { provider: "google" }`), and
-2. the user accepted the consent dialog (`hasConsent()`), which names both providers:
-   Google Fonts (`fonts.googleapis.com`, CSS for drawing fonts in the page) and Google's font
-   collection on GitHub (`raw.githubusercontent.com/google/fonts`, the font files), says that
-   they see each request including the IP address, and that the document is never sent.
+2. the user accepted the consent dialog (`hasConsent()`), which names the one provider,
+   Google Fonts (`fonts.googleapis.com` for the CSS that draws fonts in the page,
+   `fonts.gstatic.com` for the font files), says that Google sees each request including the
+   IP address, and that the document is never sent.
 
 There is one consent flag (stored in `localStorage` under `fontshelf.prefs`, with a session
 fallback when storage is blocked). `remoteAllowed()` is the gate every network call checks.
@@ -77,7 +77,6 @@ interface GetFontFileOptions {
   remote?: boolean;    // try the catalog download (default true, still needs remoteAllowed())
   gesture?: boolean;   // called from a click: queryLocalFonts may prompt
   fetchBytes?: (url: string) => Promise<Uint8Array | null>;  // tests or a host proxy
-  instance?: boolean;  // variable file: return a static instance at weight/italic (default false)
 }
 
 interface FontFile {
@@ -88,15 +87,14 @@ interface FontFile {
   embeddable: boolean | "restricted";   // false: bitmap-only or unreadable
   embedding: "installable" | "editable" | "preview-print" | "restricted";
   noSubsetting: boolean;                // embed the whole font, do not subset
-  weight: number | [number, number] | null;   // a range for a remote variable file
+  weight: number | null;                // the catalog weight for a remote file
   italic: boolean;
-  variable: boolean;
+  variable: boolean;                    // only ever true for an installed variable font
   postscriptName: string | null;
   fullName: string | null;
   index: number;                        // face index inside a .ttc
   url?: string;                         // remote only
   license?: "ofl" | "apache" | "ufl";   // remote only
-  instancedFrom?: string;               // instance: true only; source URL, or "local:<PostScript name>"
 }
 ```
 
@@ -104,71 +102,30 @@ interface FontFile {
   permission already `"granted"`, or `gesture: true`; it never prompts silently. The face
   closest to weight/italic is chosen by style name (a full or PostScript name also matches).
   A font found only by canvas probing has no bytes: `null`.
-- **Remote** next: the catalog's plain TTF/OTF from
-  `https://raw.githubusercontent.com/google/fonts/main/<license>/<dir>/<file>` (not the CSS2
-  woff2, which engines and libass cannot read), right italic first, then nearest weight.
-  Downloads go to Cache Storage (`fontshelf-files-v1`, memory fallback), so a file fetched
-  once is reused offline, even with remote later switched off.
+- **Remote** next: the catalog's static TTF for that weight and style, as Google Fonts serves
+  it to non-browser clients (`https://fonts.gstatic.com/s/<family>/vNN/<hash>.ttf`, a whole
+  font, not the unicode-range woff2 slices the CSS2 API gives browsers, which engines and
+  libass cannot read). Right italic first, then the nearest weight (heavier on a tie). The
+  files are static, so an engine that cannot apply variations gets the weight it asked for.
+  Downloads go to Cache Storage (`fontshelf-files-v2`, memory fallback), so a file fetched
+  once is reused offline, even with remote later switched off. The `fontshelf-files-v1`
+  cache of earlier versions is deleted on first use.
 - **Embedding**: `embeddable === "restricted"` means the OS/2 fsType forbids embedding; PDF and
   subtitle writers should refuse it. `"preview-print"` allows embedding in a read-only
   document; `"editable"` and `"installable"` allow editing too.
-- **Variable fonts**: many catalog families ship one variable file (`NotoSansJP[wght].ttf`).
-  Its default instance can be far from 400 (Noto Sans JP defaults to Thin), so an engine
-  that cannot apply variations (libass, a PDF writer, a wasm slide engine) should pass
-  `instance: true`. See [Static instances](#static-instances-of-variable-fonts).
-
-### Static instances of variable fonts
-
-`getFontFile(family, { weight, italic, instance: true })` turns a variable file (catalog or
-installed, such as Skia or SF Pro) into a static font, using HarfBuzz's instancer:
-
-- `wght` is pinned at the requested weight, clamped to the axis range; `ital` at 1 when
-  italic is asked and the font has that axis, else 0; `slnt` at its full lean for italic only
-  without an `ital` axis, else 0. Every other axis (`wdth`, `opsz`, ...) stays at its default.
-  All glyphs and OpenType layout are kept.
-- The result has `variable: false`, `weight` the pinned number, `instancedFrom` the source,
-  `index: 0`. Its names are rewritten so engines find it by the catalog family: name ID 1 and
-  16 are the family, ID 2 the RIBBI style, ID 17 the full style, full name and PostScript name
-  per instance (`Noto Sans JP Bold`, `NotoSansJP-Bold`), and the OS/2 fsSelection and head
-  macStyle bold/italic bits match. HarfBuzz itself sets OS/2 usWeightClass and drops
-  fvar/gvar/avar/HVAR.
-- Instances are cached by source and axis location: in memory, and catalog instances also in
-  Cache Storage (`fontshelf-files-v1`, under a synthetic `https://fontshelf.invalid/...` key)
-  so they survive a reload. Installed fonts are only kept in memory.
-- A static file comes back unchanged. If HarfBuzz cannot load or fails, the variable file
-  comes back as without `instance` (`variable: true`), so check `variable` when it matters.
-
-Noto Sans JP (9.6 MB) instances to 5.8 MB in about 150 ms in Node on an Intel i9 laptop; a
-small Latin family takes under 10 ms. The wasm compiles in about 40 ms on first use.
-
-#### The HarfBuzz wasm asset
-
-`dist/harfbuzz-subset.wasm` (683 KB, 275 KB gzipped; harfbuzzjs 1.6.4, MIT, a HarfBuzz build
-under the Old MIT license, see `dist/harfbuzz-subset.LICENSE.txt`) is fetched only the first
-time a variable file is instanced. The default URL is
-`new URL("./harfbuzz-subset.wasm", import.meta.url)`, which Vite, webpack 5, Rollup and
-Parcel builds pick up and emit as an asset on their own. Hosts that do not bundle copy the file
-into their static directory and say where it is. The Vite dev server pre-bundles
-dependencies and can lose the relative file there: add `fontshelf` to `optimizeDeps.exclude`,
-or set the URL.
-
-```ts
-setHarfbuzzWasm("/assets/fontshelf/harfbuzz-subset.wasm");  // a URL (resolved by fetch)
-setHarfbuzzWasm(bytes);   // or the bytes (Node, tests): Uint8Array | ArrayBuffer
-setHarfbuzzWasm(null);    // back to the default URL
-```
+- **Installed variable fonts** (Skia, SF Pro) come back as they are, `variable: true`.
+- **Names**: a file of a family Google Fonts builds from a variable source names the family in
+  name ID 16 and the weight in ID 1 (`Noto Sans JP` / `Noto Sans JP Medium`); a family built
+  from static masters may only have ID 1 (`Klee One SemiBold`, `Lato Black`). `parseFontInfo`
+  reads ID 16 first, then ID 1. An engine that matches by ID 1 only (libass) should rename
+  non-RIBBI faces into the family itself.
 
 Lower level:
 
 ```ts
-instanceFont(bytes, { weight?, italic?, index?, family? }): Promise<FontInstance | null>
-// { bytes, location: { wght: 700 }, weight, italic }; null for a static font or a HarfBuzz failure
-instanceLocation(axes, weight?, italic?): Record<string, number>   // the pure axis choice above
-instanceStyleName(weight, italic): string                          // "SemiBold Italic", "Weight450"
-parseAxes(bytes, index?): FontAxis[]                               // fvar axes: { tag, min, default, max }
 catalogFiles(family): CatalogFamilyFiles | undefined
-// { family, license, dir: "ofl/notosansjp", files: CatalogFile[] }
-// CatalogFile = { file, url, weight: [min, max], italic, variable, bytes }  (bytes = size, for warnings)
+// { family, license, files: CatalogFile[] }
+// CatalogFile = { url, weight, italic, bytes }  (bytes = file size, for warnings)
 pickCatalogFile(files, weight?, italic?): CatalogFile | undefined
 fetchFontBytes(url, fetchBytes?): Promise<Uint8Array | null>   // cached, gated
 isFontFileCached(url): Promise<boolean>                          // never hits the network
@@ -178,7 +135,7 @@ embeddingOf(fsType: number | null): Embedding
 embeddableOf(info): boolean | "restricted"
 styleOf(style: string): { weight: number; italic: boolean }
 pickLocalFace(fonts, family, weight?, italic?)
-GOOGLE_FONTS_RAW
+GSTATIC_FONTS   // "https://fonts.gstatic.com/s/"
 ```
 
 ### Drawing fonts in the page (Google CSS2)
@@ -280,14 +237,20 @@ fontT(key, params?)
 
 `src/catalog.ts` holds the curated families (14 groups: Office-compatible metric clones,
 sans, serif, mono, display, handwriting, Japanese, Chinese, Korean, Arabic, Hebrew,
-Cyrillic, Devanagari, Thai). `src/catalog-files.ts` is generated from the google/fonts
-`METADATA.pb` files, every URL checked with a HEAD request:
+Cyrillic, Devanagari, Thai). `src/catalog-files.ts` is generated: the family's weights and
+license from `fonts.google.com/metadata/fonts/<family>`, then one CSS2 request per family
+with a non-browser User-Agent, which answers with a static TTF URL per weight and style
+(weights up to 900, the CSS2 limit), each sized with a HEAD request. A browser cannot set its
+User-Agent, so the URLs are resolved here and baked in; the `vNN` in a path is Google's
+version of the family, so regenerate to move to newer files (old versions stay served).
 
 ```sh
 npm run gen:catalog   # node scripts/gen-catalog.mjs (Node 23.6+)
 ```
 
-Current output: 165 families (158 OFL, 5 Apache, 2 UFL), 507 files of which 117 variable, 598.9 MB in all. CJK files run from 4 to 25 MB (Noto Serif SC is the largest), so a UI should show `bytes` before a download.
+Current output (2026-11-19): 165 families (158 OFL, 5 Apache, 2 UFL), 1228 static files,
+1148.6 MB in all. A CJK file is 5.7 MB (Noto Sans JP) to 14.8 MB (Noto Serif SC) per weight,
+so a UI should show `bytes` before a download.
 
 ## Development
 
@@ -300,7 +263,5 @@ npm run build
 
 ## License
 
-MIT. `dist/harfbuzz-subset.wasm` is HarfBuzz (Old MIT) built by harfbuzzjs (MIT). The fonts
-themselves are under their own licenses (SIL OFL, Apache 2.0 or the Ubuntu Font License,
-given per file as `license`). The test fixture `test/fixtures/Figtree[wght].ttf` is Figtree
-(SIL OFL 1.1, `test/fixtures/Figtree-OFL.txt`).
+MIT. The fonts themselves are under their own licenses (SIL OFL, Apache 2.0 or the Ubuntu
+Font License, given per family as `license`).

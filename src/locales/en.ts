@@ -13,7 +13,7 @@ const strings: FontStrings = {
   fontsFound: "{n} more fonts available",
   fontsNoneFound: "No other fonts found",
   fontsGetTitle: "Get more fonts",
-  fontsConsent: "Fonts are downloaded from Google Fonts and from Google's font collection on GitHub. This needs an internet connection, and Google and GitHub receive each request (including your IP address). Your document is never sent.",
+  fontsConsent: "Fonts are downloaded from Google Fonts. This needs an internet connection, and Google receives each request (including your IP address). Your document is never sent.",
   fontsContinue: "Continue",
   fontsCatalogNote: "From Google Fonts. Pick a font to download it and apply it to the selection.",
   fontsSearch: "Search fonts",

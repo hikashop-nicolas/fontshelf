@@ -13,7 +13,7 @@ const strings: Partial<FontStrings> = {
   fontsFound: "Доступно ещё шрифтов: {n}",
   fontsNoneFound: "Других шрифтов не найдено",
   fontsGetTitle: "Получить другие шрифты",
-  fontsConsent: "Шрифты загружаются из Google Fonts и из коллекции шрифтов Google на GitHub. Нужно подключение к интернету, и Google и GitHub получают каждый запрос (включая ваш IP-адрес). Ваш документ никогда не отправляется.",
+  fontsConsent: "Шрифты загружаются из Google Fonts. Нужно подключение к интернету, и Google получает каждый запрос (включая ваш IP-адрес). Ваш документ никогда не отправляется.",
   fontsContinue: "Продолжить",
   fontsCatalogNote: "Из Google Fonts. Выберите шрифт, чтобы загрузить его и применить к выделению.",
   fontsSearch: "Поиск шрифтов",

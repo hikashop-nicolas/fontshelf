@@ -3,7 +3,7 @@
 export interface FontPrefs {
   /** The user asked for their installed fonts. */
   local?: boolean;
-  /** The user agreed to download fonts (Google Fonts and the google/fonts GitHub repository). */
+  /** The user agreed to download fonts from Google Fonts. */
   consent?: boolean;
   /** Web font families they added. */
   added?: string[];

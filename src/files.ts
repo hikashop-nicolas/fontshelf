@@ -1,61 +1,46 @@
 // Font files as bytes, for engines that shape or embed fonts themselves (WebGL slides, PDF,
-// libass). Local: queryLocalFonts() blobs. Remote: plain TTF/OTF from the google/fonts repo.
+// libass). Local: queryLocalFonts() blobs. Remote: Google Fonts' static TTFs on fonts.gstatic.com.
 import { findWebFont } from "./catalog.js";
 import { FONT_FILES, type CatalogFileTuple } from "./catalog-files.js";
 import { hasLocalFontAccess, localFontsPermission, queryLocalFonts, type LocalFontData } from "./detect.js";
-import { instanceFont, instanceLocation, locationKey } from "./instance.js";
-import { embeddableOf, parseAxes, parseFontInfo, type Embedding, type FontFormat } from "./sfnt.js";
+import { embeddableOf, parseFontInfo, type Embedding, type FontFormat } from "./sfnt.js";
 import { remoteAllowed } from "./shared.js";
 
-// The google/fonts commit gen-catalog read (see catalog-files.ts); move both together.
-export const GOOGLE_FONTS_RAW = "https://raw.githubusercontent.com/google/fonts/cc5661d43cd4f9aad5567033a8e15ca28dc35c86";
+/** Where the catalog's static TTF files live (paths in catalog-files.ts are relative to it). */
+export const GSTATIC_FONTS = "https://fonts.gstatic.com/s/";
 
-/** One file of a catalog family in the google/fonts repository. */
+/** One static TTF of a catalog family, as served by Google Fonts. */
 export interface CatalogFile {
-  file: string;
   url: string;
-  /** Weight range; equal ends for a static face. */
-  weight: [number, number];
+  weight: number;
   italic: boolean;
-  /** Variable font (covers the weight range in one file). */
-  variable: boolean;
-  /** Download size, so a UI can warn before fetching a large CJK file. */
+  /** File size, so a UI can warn before fetching a large CJK file. */
   bytes: number;
 }
 
 export interface CatalogFamilyFiles {
   family: string;
   license: "ofl" | "apache" | "ufl";
-  /** "ofl/notosansjp" */
-  dir: string;
   files: CatalogFile[];
 }
 
-const toFile = (path: string, t: CatalogFileTuple): CatalogFile => ({
-  file: t[0],
-  url: `${GOOGLE_FONTS_RAW}/${path}/${encodeURIComponent(t[0])}`,
-  weight: [t[1], t[2]],
-  italic: t[3] === 1,
-  variable: t[0].includes("["),
-  bytes: t[4],
-});
+const toFile = (t: CatalogFileTuple): CatalogFile => ({ url: GSTATIC_FONTS + t[0], weight: t[1], italic: t[2] === 1, bytes: t[3] });
 
-/** The repository files of a catalog family, or undefined outside the catalog. */
+/** The static files of a catalog family, or undefined outside the catalog. */
 export function catalogFiles(family: string): CatalogFamilyFiles | undefined {
   const wf = findWebFont(family);
   const entry = wf && FONT_FILES[wf.family];
   if (!wf || !entry) return undefined;
-  const [path, files] = entry;
-  return { family: wf.family, license: path.split("/")[0] as CatalogFamilyFiles["license"], dir: path, files: files.map((t) => toFile(path, t)) };
+  return { family: wf.family, license: entry[0] as CatalogFamilyFiles["license"], files: entry[1].map(toFile) };
 }
 
-/** The file to download for a weight/style: right italic first, then the nearest weight. */
+/** The file to download for a weight/style: right italic first, then the nearest weight (heavier on a tie). */
 export function pickCatalogFile(files: readonly CatalogFile[], weight = 400, italic = false): CatalogFile | undefined {
   let best: CatalogFile | undefined;
   let bestScore = Infinity;
   for (const f of files) {
-    const dist = weight < f.weight[0] ? f.weight[0] - weight : weight > f.weight[1] ? weight - f.weight[1] : 0;
-    const score = (f.italic === italic ? 0 : 10000) + dist;
+    const d = f.weight - weight;
+    const score = (f.italic === italic ? 0 : 10000) + Math.abs(d) * 2 - (d > 0 ? 1 : 0);
     if (score < bestScore) { best = f; bestScore = score; }
   }
   return best;
@@ -72,19 +57,18 @@ export interface FontFile {
   embedding: Embedding;
   /** The font must be embedded whole, not subset (fsType bit 8). */
   noSubsetting: boolean;
-  /** Weight of the file returned: a [min, max] range for a remote variable file, else OS/2 usWeightClass. */
-  weight: number | [number, number] | null;
+  /** OS/2 usWeightClass (the catalog weight for a remote file). */
+  weight: number | null;
   italic: boolean;
+  /** An installed variable font comes back as is. */
   variable: boolean;
   postscriptName: string | null;
   fullName: string | null;
   /** Index in a .ttc collection. */
   index: number;
-  /** Remote only: the URL and the license directory. */
+  /** Remote only: the URL and the license. */
   url?: string;
   license?: CatalogFamilyFiles["license"];
-  /** Set on a static instance made with `instance: true`: the source URL ("local:<PostScript name>" for a local font). */
-  instancedFrom?: string;
 }
 
 export interface GetFontFileOptions {
@@ -98,8 +82,6 @@ export interface GetFontFileOptions {
   gesture?: boolean;
   /** Byte fetcher for tests or a host proxy. */
   fetchBytes?: (url: string) => Promise<Uint8Array | null>;
-  /** Variable file: return a static instance pinned at weight/italic (loads HarfBuzz once). */
-  instance?: boolean;
 }
 
 // --- local --------------------------------------------------------------------------------------
@@ -150,7 +132,14 @@ async function localFile(family: string, o: GetFontFileOptions): Promise<FontFil
 
 // --- remote -------------------------------------------------------------------------------------
 
-const CACHE_NAME = "fontshelf-files-v1";
+const CACHE_NAME = "fontshelf-files-v2";
+// v1 held google/fonts GitHub files and HarfBuzz instances: dropped once.
+const OLD_CACHES = ["fontshelf-files-v1"];
+let pruned: Promise<void> | null = null;
+const pruneOld = (): Promise<void> => (pruned ??= (async () => {
+  try { for (const n of OLD_CACHES) await caches.delete(n); } catch { /* no Cache Storage */ }
+})());
+
 const memory = new Map<string, Uint8Array>();
 const inflight = new Map<string, Promise<Uint8Array | null>>();
 
@@ -158,6 +147,7 @@ async function cacheGet(url: string): Promise<Uint8Array | null> {
   const hit = memory.get(url);
   if (hit) return hit;
   try {
+    void pruneOld();
     const c = await caches.open(CACHE_NAME);
     const res = await c.match(url);
     if (res) {
@@ -218,9 +208,7 @@ async function remoteFile(family: string, o: GetFontFileOptions): Promise<FontFi
   if (!out) return null;
   out.url = file.url;
   out.license = cat.license;
-  // A variable file's OS/2 weight is its default instance (Noto Sans JP: 100), so give the range.
-  if (file.variable) out.weight = file.weight;
-  else if (out.weight === null) out.weight = file.weight[0];
+  out.weight = file.weight;
   return out;
 }
 
@@ -245,7 +233,7 @@ function describe(bytes: Uint8Array, family: string, source: FontFile["source"],
 
 /**
  * The bytes of a font file for `family`: the installed font first (Chromium with local-fonts
- * permission), then the catalog file from the google/fonts repository when remote is allowed.
+ * permission), then the catalog's static TTF from Google Fonts when remote is allowed.
  * Null when neither is available (a family found only by canvas probing has no bytes).
  */
 export async function getFontFile(family: string, opts: GetFontFileOptions = {}): Promise<FontFile | null> {
@@ -253,42 +241,5 @@ export async function getFontFile(family: string, opts: GetFontFileOptions = {})
   let f: FontFile | null = null;
   if (o.local !== false) f = await localFile(family, o);
   if (!f && o.remote !== false) f = await remoteFile(family, o);
-  return f && o.instance && f.variable ? instanceFile(f, o.weight, o.italic) : f;
-}
-
-// --- static instances ---------------------------------------------------------------------------
-
-const instances = new Map<string, Promise<FontFile | null>>();
-
-/** A synthetic Cache Storage key for an instance; never fetched. */
-const instanceCacheUrl = (key: string) => `https://fontshelf.invalid/instance?k=${encodeURIComponent(key)}`;
-
-/** The static instance of a variable FontFile, cached by source and axis location; the source itself when instancing fails. */
-async function instanceFile(f: FontFile, weight: number, italic: boolean): Promise<FontFile> {
-  const from = f.url ?? `local:${f.postscriptName ?? f.fullName ?? f.family}:${f.bytes.byteLength}`;
-  const loc = instanceLocation(parseAxes(f.bytes, f.index), weight, italic);
-  const key = `${from}#${locationKey(loc)}`;
-  let run = instances.get(key);
-  if (!run) {
-    run = (async () => {
-      // Only catalog instances go to Cache Storage; installed fonts stay in memory.
-      let bytes = f.url ? await cacheGet(instanceCacheUrl(key)) : null;
-      if (!bytes) {
-        const inst = await instanceFont(f.bytes, { weight, italic, index: f.index, family: f.family });
-        if (!inst) return null;
-        bytes = inst.bytes;
-        if (f.url) await cachePut(instanceCacheUrl(key), bytes);
-      }
-      const out = describe(bytes, f.family, f.source);
-      if (!out) return null;
-      out.weight = loc.wght ?? out.weight;
-      if (f.url) out.url = f.url;
-      if (f.license) out.license = f.license;
-      out.instancedFrom = f.url ?? `local:${f.postscriptName ?? f.family}`;
-      return out;
-    })();
-    instances.set(key, run);
-    run.then((r) => { if (!r) instances.delete(key); }, () => instances.delete(key));
-  }
-  return (await run.catch(() => null)) ?? f;
+  return f;
 }

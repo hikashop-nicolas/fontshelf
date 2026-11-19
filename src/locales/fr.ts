@@ -13,7 +13,7 @@ const strings: Partial<FontStrings> = {
   fontsFound: "{n} polices de plus disponibles",
   fontsNoneFound: "Aucune autre police trouvée",
   fontsGetTitle: "Obtenir plus de polices",
-  fontsConsent: "Les polices sont téléchargées depuis Google Fonts et depuis la collection de polices de Google sur GitHub. Une connexion internet est nécessaire, et Google et GitHub reçoivent chaque requête (y compris votre adresse IP). Votre document n'est jamais envoyé.",
+  fontsConsent: "Les polices sont téléchargées depuis Google Fonts. Une connexion internet est nécessaire, et Google reçoit chaque requête (y compris votre adresse IP). Votre document n'est jamais envoyé.",
   fontsContinue: "Continuer",
   fontsCatalogNote: "Depuis Google Fonts. Choisissez une police pour la télécharger et l'appliquer à la sélection.",
   fontsSearch: "Rechercher une police",

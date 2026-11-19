@@ -62,10 +62,10 @@ describe("strings", () => {
       for (const v of Object.values(dict)) expect(v).not.toContain(String.fromCharCode(0x2014));
     }
   });
-  it("names Google Fonts and GitHub in every consent text", () => {
+  it("names Google Fonts, and only Google, in every consent text", () => {
     for (const dict of Object.values(LOCALES)) {
       expect(dict.fontsConsent).toContain("Google Fonts");
-      expect(dict.fontsConsent).toContain("GitHub");
+      expect(dict.fontsConsent).not.toContain("GitHub");
       expect(dict.fontsConsent).toMatch(/IP/);
     }
   });
@@ -95,7 +95,7 @@ describe("dialogs", () => {
     const p = requestRemoteFont();
     const dlg = document.querySelector(".fontshelf-consent")!;
     expect(dlg.getAttribute("role")).toBe("dialog");
-    expect(dlg.textContent).toContain("GitHub");
+    expect(dlg.textContent).toContain("Google Fonts");
     (dlg.querySelector(".fontshelf-primary") as HTMLButtonElement).click();
     await new Promise((r) => setTimeout(r, 0));
     expect(hasConsent()).toBe(true);

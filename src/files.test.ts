@@ -47,31 +47,36 @@ describe("sfnt parsing", () => {
 });
 
 describe("catalog files", () => {
-  it("covers every catalog family with plain TTF/OTF files and sizes", () => {
+  it("covers every catalog family with static gstatic TTF files and sizes", () => {
     for (const wf of WEB_FONTS) {
       const c = catalogFiles(wf.family);
       expect(c, wf.family).toBeDefined();
       expect(c!.files.length, wf.family).toBeGreaterThan(0);
       for (const f of c!.files) {
-        expect(f.file).toMatch(/\.(ttf|otf)$/);
+        expect(f.url).toMatch(/^https:\/\/fonts\.gstatic\.com\/s\/[a-z0-9]+\/v\d+\/[\w-]+\.ttf$/);
         expect(f.bytes).toBeGreaterThan(1000);
       }
+      expect(c!.files.some((f) => !f.italic), wf.family).toBe(true);
       expect(["ofl", "apache", "ufl"]).toContain(c!.license);
     }
   });
-  it("builds raw GitHub URLs, escaping variable-font brackets", () => {
+  it("lists one static file per weight and style", () => {
     const c = catalogFiles("noto sans jp")!;
     expect(c.family).toBe("Noto Sans JP");
-    expect(c.files[0]).toMatchObject({ file: "NotoSansJP[wght].ttf", variable: true, weight: [100, 900] });
-    expect(c.files[0]!.url).toBe("https://raw.githubusercontent.com/google/fonts/cc5661d43cd4f9aad5567033a8e15ca28dc35c86/ofl/notosansjp/NotoSansJP%5Bwght%5D.ttf");
+    expect(c.files.map((f) => f.weight)).toEqual([100, 200, 300, 400, 500, 600, 700, 800, 900]);
+    expect(catalogFiles("Open Sans")!.files.filter((f) => f.italic).map((f) => f.weight)).toEqual([300, 400, 500, 600, 700, 800]);
+    expect(catalogFiles("Klee One")!.files.map((f) => [f.weight, f.italic])).toEqual([[400, false], [600, false]]);
     expect(catalogFiles("Nope")).toBeUndefined();
   });
   it("picks the right italic first, then the nearest weight", () => {
-    const files = catalogFiles("Tinos")!.files;
-    expect(pickCatalogFile(files, 700, true)!.file).toBe("Tinos-BoldItalic.ttf");
-    expect(pickCatalogFile(files, 600, false)!.file).toBe("Tinos-Bold.ttf");
-    expect(pickCatalogFile(files)!.file).toBe("Tinos-Regular.ttf");
-    expect(pickCatalogFile(catalogFiles("Klee One")!.files, 400, true)!.file).toBe("KleeOne-Regular.ttf"); // no italic: synthesise
+    const at = (fam: string, w?: number, i?: boolean) => { const f = pickCatalogFile(catalogFiles(fam)!.files, w, i)!; return [f.weight, f.italic]; };
+    expect(at("Tinos", 700, true)).toEqual([700, true]);
+    expect(at("Tinos", 600, false)).toEqual([700, false]);
+    expect(at("Tinos")).toEqual([400, false]);
+    expect(at("Klee One", 700)).toEqual([600, false]);
+    expect(at("Klee One", 400, true)).toEqual([400, false]); // no italic: synthesise
+    expect(at("Lato", 500)).toEqual([400, false]); // Lato: 100 300 400 700 900
+    expect(at("Lato", 800)).toEqual([900, false]); // a tie goes heavier
   });
 });
 
@@ -131,7 +136,9 @@ describe("getFontFile", () => {
     expect(fetchBytes).not.toHaveBeenCalled();
     setConsent(true);
     const f = (await getFontFile("tinos", { weight: 700, fetchBytes }))!;
-    expect(fetchBytes).toHaveBeenCalledWith("https://raw.githubusercontent.com/google/fonts/cc5661d43cd4f9aad5567033a8e15ca28dc35c86/ofl/tinos/Tinos-Bold.ttf");
+    const bold = catalogFiles("Tinos")!.files.find((x) => x.weight === 700 && !x.italic)!;
+    expect(fetchBytes).toHaveBeenCalledWith(bold.url);
+    expect(bold.url).toMatch(/^https:\/\/fonts\.gstatic\.com\/s\/tinos\//);
     expect(f).toMatchObject({ source: "remote", family: "Tinos", license: "ofl", embeddable: true, weight: 700 });
     expect(await isFontFileCached(f.url!)).toBe(true);
     setRemoteEnabled(false); // offline reuse needs no network permission

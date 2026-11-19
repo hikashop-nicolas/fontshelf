@@ -13,7 +13,7 @@ const strings: Partial<FontStrings> = {
   fontsFound: "Mais {n} fontes disponíveis",
   fontsNoneFound: "Nenhuma outra fonte encontrada",
   fontsGetTitle: "Obter mais fontes",
-  fontsConsent: "As fontes são transferidas do Google Fonts e da coleção de fontes da Google no GitHub. É necessária uma ligação à internet, e a Google e o GitHub recebem cada pedido (incluindo o seu endereço IP). O seu documento nunca é enviado.",
+  fontsConsent: "As fontes são transferidas do Google Fonts. É necessária uma ligação à internet, e a Google recebe cada pedido (incluindo o seu endereço IP). O seu documento nunca é enviado.",
   fontsContinue: "Continuar",
   fontsCatalogNote: "Do Google Fonts. Escolha uma fonte para a transferir e aplicar à seleção.",
   fontsSearch: "Pesquisar fontes",

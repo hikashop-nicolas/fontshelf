@@ -72,56 +72,6 @@ function readName(v: DataView, off: number, len: number): Partial<Record<number,
   return out;
 }
 
-/** One fvar axis: tag ("wght", "ital", "slnt", "wdth", "opsz"...) and its range. */
-export interface FontAxis {
-  tag: string;
-  min: number;
-  default: number;
-  max: number;
-}
-
-/** Offset of the `index`-th font's table directory and its tables, or null when not an sfnt. */
-export function sfntTables(bytes: Uint8Array, index = 0): { offset: number; tables: Map<string, { o: number; n: number }> } | null {
-  if (bytes.byteLength < 12) return null;
-  const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  let off = 0;
-  if (tag(v, 0) === "ttcf") {
-    if (index >= v.getUint32(8) || 12 + index * 4 + 4 > v.byteLength) return null;
-    off = v.getUint32(12 + index * 4);
-    if (off + 12 > v.byteLength) return null;
-  }
-  const ver = v.getUint32(off);
-  if (ver !== 0x4f54544f && ver !== 0x00010000 && ver !== 0x74727565) return null;
-  const tables = new Map<string, { o: number; n: number }>();
-  const numTables = v.getUint16(off + 4);
-  for (let i = 0; i < numTables; i++) {
-    const r = off + 12 + i * 16;
-    if (r + 16 > v.byteLength) return null;
-    const o = v.getUint32(r + 8);
-    const n = v.getUint32(r + 12);
-    if (o + n <= v.byteLength) tables.set(tag(v, r), { o, n });
-  }
-  return { offset: off, tables };
-}
-
-/** The variation axes of a font (empty for a static font). */
-export function parseAxes(bytes: Uint8Array, index = 0): FontAxis[] {
-  const fvar = sfntTables(bytes, index)?.tables.get("fvar");
-  if (!fvar || fvar.n < 16) return [];
-  const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const first = fvar.o + v.getUint16(fvar.o + 4);
-  const count = v.getUint16(fvar.o + 8);
-  const size = v.getUint16(fvar.o + 10);
-  const out: FontAxis[] = [];
-  const fixed = (o: number) => v.getInt32(o) / 65536;
-  for (let i = 0; i < count; i++) {
-    const r = first + i * size;
-    if (size < 20 || r + 20 > fvar.o + fvar.n) break;
-    out.push({ tag: tag(v, r), min: fixed(r + 4), default: fixed(r + 8), max: fixed(r + 12) });
-  }
-  return out;
-}
-
 /** Parse one font (the `index`-th of a collection). Null when the bytes are not a font. */
 export function parseFontInfo(bytes: Uint8Array, index = 0): FontInfo | null {
   if (bytes.byteLength < 12) return null;

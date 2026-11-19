@@ -26,7 +26,7 @@ export function shared(): SharedState {
   });
 }
 
-/** Let fontshelf reach Google Fonts and GitHub (still only after the user's consent). */
+/** Let fontshelf reach Google Fonts (still only after the user's consent). */
 export function setRemoteEnabled(on: boolean): void {
   const s = shared();
   if (s.remoteEnabled === on) return;
@@ -36,7 +36,7 @@ export function setRemoteEnabled(on: boolean): void {
 
 export const isRemoteEnabled = (): boolean => shared().remoteEnabled;
 
-/** The user agreed to downloads from Google Fonts and GitHub (stored, or given this session). */
+/** The user agreed to downloads from Google Fonts (stored, or given this session). */
 export function hasConsent(): boolean {
   const c = shared().consent;
   return c ?? !!readFontPrefs().consent;

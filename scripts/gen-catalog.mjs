@@ -1,53 +1,57 @@
 #!/usr/bin/env node
-// Builds src/catalog-files.ts: for each curated family, its google/fonts directory and the
-// TTF/OTF files it ships (from METADATA.pb), each checked with a HEAD request for its size.
+// Builds src/catalog-files.ts: for each curated family, the static TTF of every weight/italic
+// Google Fonts serves, resolved through the CSS2 API and sized with a HEAD request.
 // Usage: node scripts/gen-catalog.mjs   (needs Node 23.6+ to import the .ts catalog)
 import { writeFile } from "node:fs/promises";
-import { execFileSync } from "node:child_process";
 import { WEB_FONTS } from "../src/catalog.ts";
 
-const RAW = "https://raw.githubusercontent.com/google/fonts/main";
-const LICENSES = ["ofl", "apache", "ufl"];
-// Directory names that do not follow "lowercase, letters and digits only".
-const DIR_OVERRIDES = {};
+const GSTATIC = "https://fonts.gstatic.com/s/";
+// A non-browser User-Agent makes the CSS2 API answer with whole static TTFs, not woff2 slices.
+const UA = "Wget/1.0";
 
-const dirOf = (family) => DIR_OVERRIDES[family] ?? family.toLowerCase().replace(/[^a-z0-9]/g, "");
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function fetchText(url) {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const res = await fetch(url);
-    if (res.status === 404) return null;
-    if (res.ok) return res.text();
-    await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+async function get(url, init = {}) {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await fetch(url, { ...init, headers: { "user-agent": UA, ...init.headers } }).catch(() => null);
+    if (res?.ok) return res;
+    if (res && res.status === 404) return null;
+    await sleep(1000 * (attempt + 1));
   }
-  throw new Error(`GET ${url} failed`);
+  throw new Error(`${init.method ?? "GET"} ${url} failed`);
 }
 
+/** fonts.google.com family metadata: { fonts: { "400": .., "700i": .. }, license }. */
+async function familyMeta(family) {
+  const res = await get(`https://fonts.google.com/metadata/fonts/${encodeURIComponent(family)}`);
+  if (!res) return null;
+  return JSON.parse((await res.text()).replace(/^\)\]\}'\s*/, ""));
+}
+
+/** CSS2 request for every style the family has; returns "700i" -> gstatic URL. */
+async function styleUrls(family, keys) {
+  const styles = keys.map((k) => ({ w: Number.parseInt(k, 10), i: k.endsWith("i") ? 1 : 0 }))
+    .sort((a, b) => a.i - b.i || a.w - b.w);
+  const spec = styles.some((s) => s.i)
+    ? `ital,wght@${styles.map((s) => `${s.i},${s.w}`).join(";")}`
+    : `wght@${styles.map((s) => s.w).join(";")}`;
+  const url = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family).replace(/%20/g, "+")}:${spec}`;
+  const css = await (await get(url)).text();
+  const out = new Map();
+  for (const block of css.matchAll(/@font-face\s*\{([^}]*)\}/g)) {
+    const b = block[1];
+    const italic = /font-style:\s*italic/.test(b);
+    const weight = b.match(/font-weight:\s*(\d+)/)?.[1];
+    const src = b.match(/src:\s*url\(([^)]+)\)\s*format\('truetype'\)/)?.[1];
+    if (weight && src) out.set(`${weight}${italic ? "i" : ""}`, src);
+  }
+  return out;
+}
+
+// identity: the file's own size, not the gzip transfer size
 async function headSize(url) {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const res = await fetch(url, { method: "HEAD" });
-    if (res.ok) {
-      const n = Number(res.headers.get("content-length"));
-      if (n > 0) return n;
-    }
-    if (res.status === 404) return 0;
-    await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-  }
-  return 0;
-}
-
-// Minimal text-proto reader for the fields we need.
-function parseMetadata(text) {
-  const blocks = (name) => [...text.matchAll(new RegExp(`^${name} \\{([\\s\\S]*?)^\\}`, "gm"))].map((m) => m[1]);
-  const field = (block, key) => block.match(new RegExp(`^\\s*${key}: "?([^"\\n]*)"?`, "m"))?.[1];
-  const fonts = blocks("fonts").map((b) => ({
-    name: field(b, "name"),
-    style: field(b, "style"),
-    weight: Number(field(b, "weight")),
-    filename: field(b, "filename"),
-  }));
-  const axes = blocks("axes").map((b) => ({ tag: field(b, "tag"), min: Number(field(b, "min_value")), max: Number(field(b, "max_value")) }));
-  return { name: field(text, "name"), fonts, axes };
+  const res = await get(url, { method: "HEAD", headers: { "accept-encoding": "identity" } });
+  return res ? Number(res.headers.get("content-length")) || 0 : 0;
 }
 
 async function pool(items, n, fn) {
@@ -62,53 +66,43 @@ async function pool(items, n, fn) {
   return out;
 }
 
-const missing = [];
-const broken = [];
+const problems = [];
 const entries = await pool(WEB_FONTS, 6, async (wf) => {
-  const dir = dirOf(wf.family);
-  for (const lic of LICENSES) {
-    const text = await fetchText(`${RAW}/${lic}/${dir}/METADATA.pb`);
-    if (!text) continue;
-    const meta = parseMetadata(text);
-    const wght = meta.axes.find((a) => a.tag === "wght");
-    const faces = [];
-    for (const f of meta.fonts) {
-      if (!f.filename || !/\.(ttf|otf)$/i.test(f.filename)) continue;
-      const variable = f.filename.includes("[");
-      const url = `${RAW}/${lic}/${dir}/${encodeURIComponent(f.filename)}`;
-      const bytes = await headSize(url);
-      if (!bytes) { broken.push(url); continue; }
-      const min = variable && wght ? wght.min : f.weight;
-      const max = variable && wght ? wght.max : f.weight;
-      if (faces.some((x) => x[0] === f.filename)) continue;
-      faces.push([f.filename, min, max, f.style === "italic" ? 1 : 0, bytes]);
-    }
-    if (meta.name && meta.name !== wf.family) console.warn(`name mismatch: ${wf.family} -> ${meta.name}`);
-    return [wf.family, `${lic}/${dir}`, faces];
+  const meta = await familyMeta(wf.family);
+  if (!meta?.fonts) { problems.push(`no metadata: ${wf.family}`); return null; }
+  if (meta.family !== wf.family) problems.push(`name mismatch: ${wf.family} -> ${meta.family}`);
+  // The CSS2 API serves weights up to 900 only (Nunito and others also list 1000).
+  const keys = Object.keys(meta.fonts).filter((k) => Number.parseInt(k, 10) <= 900);
+  const urls = await styleUrls(wf.family, keys);
+  const files = [];
+  for (const k of keys) {
+    const url = urls.get(k);
+    if (!url || !url.startsWith(GSTATIC) || !url.endsWith(".ttf")) { problems.push(`no TTF: ${wf.family} ${k} ${url ?? ""}`); continue; }
+    const bytes = await headSize(url);
+    if (!bytes) { problems.push(`no size: ${url}`); continue; }
+    files.push([url.slice(GSTATIC.length), Number.parseInt(k, 10), k.endsWith("i") ? 1 : 0, bytes]);
   }
-  missing.push(wf.family);
-  return null;
+  files.sort((a, b) => a[2] - b[2] || a[1] - b[1]);
+  const license = meta.license === "apache2" ? "apache" : meta.license ?? "ofl";
+  if (!["ofl", "apache", "ufl"].includes(license)) problems.push(`license: ${wf.family} ${meta.license}`);
+  return [wf.family, license, files];
 });
 
-const sha = (() => {
-  try { return execFileSync("gh", ["api", "repos/google/fonts/commits/main", "--jq", ".sha"], { encoding: "utf8" }).trim(); } catch { return "unknown"; }
-})();
-const ok = entries.filter(Boolean);
-const lines = ok.map(([fam, path, faces]) => `  ${JSON.stringify(fam)}: [${JSON.stringify(path)}, ${JSON.stringify(faces)}],`);
-const total = ok.reduce((s, e) => s + e[2].reduce((t, f) => t + f[4], 0), 0);
-const src = `// Generated by scripts/gen-catalog.mjs from the google/fonts METADATA.pb files. Do not edit.
-// google/fonts main was at ${sha} on ${new Date().toISOString().slice(0, 10)}; ${ok.length} families, ${ok.reduce((s, e) => s + e[2].length, 0)} files, ${(total / 1e6).toFixed(1)} MB.
+const ok = entries.filter((e) => e && e[2].length);
+const count = ok.reduce((s, e) => s + e[2].length, 0);
+const total = ok.reduce((s, e) => s + e[2].reduce((t, f) => t + f[3], 0), 0);
+const lines = ok.map(([fam, lic, files]) => `  ${JSON.stringify(fam)}: [${JSON.stringify(lic)}, ${JSON.stringify(files)}],`);
+const src = `// Generated by scripts/gen-catalog.mjs from fonts.google.com metadata and the CSS2 API. Do not edit.
+// Generated on ${new Date().toISOString().slice(0, 10)}; ${ok.length} families, ${count} static TTF files on fonts.gstatic.com, ${(total / 1e6).toFixed(1)} MB.
 
-/** One file: name, weight min, weight max (equal for a static face), italic (1), size in bytes. */
-export type CatalogFileTuple = [file: string, wMin: number, wMax: number, italic: 0 | 1, bytes: number];
+/** One file: path under https://fonts.gstatic.com/s/, weight, italic (1), size in bytes. */
+export type CatalogFileTuple = [path: string, weight: number, italic: 0 | 1, bytes: number];
 
-/** Family -> [license dir + "/" + family dir, files]. */
+/** Family -> [license, files]. */
 export const FONT_FILES: Record<string, [string, CatalogFileTuple[]]> = {
 ${lines.join("\n")}
 };
 `;
 await writeFile(new URL("../src/catalog-files.ts", import.meta.url), src);
-console.log(`${ok.length}/${WEB_FONTS.length} families, ${total} bytes`);
-if (missing.length) console.log("missing:", missing.join(", "));
-if (broken.length) console.log("broken:", broken.join("\n"));
-for (const e of ok) if (!e[2].length) console.log("no files:", e[0]);
+console.log(`${ok.length}/${WEB_FONTS.length} families, ${count} files, ${total} bytes`);
+for (const p of problems) console.log(p);

@@ -13,7 +13,7 @@ const strings: Partial<FontStrings> = {
   fontsFound: "{n} weitere Schriftarten verfügbar",
   fontsNoneFound: "Keine weiteren Schriftarten gefunden",
   fontsGetTitle: "Weitere Schriftarten holen",
-  fontsConsent: "Schriftarten werden von Google Fonts und aus der Schriftensammlung von Google auf GitHub heruntergeladen. Dafür ist eine Internetverbindung nötig, und Google und GitHub erhalten jede Anfrage (einschließlich Ihrer IP-Adresse). Ihr Dokument wird nie gesendet.",
+  fontsConsent: "Schriftarten werden von Google Fonts heruntergeladen. Dafür ist eine Internetverbindung nötig, und Google erhält jede Anfrage (einschließlich Ihrer IP-Adresse). Ihr Dokument wird nie gesendet.",
   fontsContinue: "Weiter",
   fontsCatalogNote: "Von Google Fonts. Wählen Sie eine Schriftart, um sie herunterzuladen und auf die Auswahl anzuwenden.",
   fontsSearch: "Schriftarten suchen",

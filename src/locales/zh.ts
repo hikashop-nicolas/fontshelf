@@ -13,7 +13,7 @@ const strings: Partial<FontStrings> = {
   fontsFound: "新增 {n} 个可用字体",
   fontsNoneFound: "未找到其他字体",
   fontsGetTitle: "获取更多字体",
-  fontsConsent: "字体将从 Google Fonts 和 GitHub 上的 Google 字体库下载。这需要联网，并且 Google 和 GitHub 会收到每个请求（包括您的 IP 地址）。您的文档绝不会被发送。",
+  fontsConsent: "字体将从 Google Fonts 下载。这需要联网，并且 Google 会收到每个请求（包括您的 IP 地址）。您的文档绝不会被发送。",
   fontsContinue: "继续",
   fontsCatalogNote: "来自 Google Fonts。选择字体即可下载并应用到所选内容。",
   fontsSearch: "搜索字体",
