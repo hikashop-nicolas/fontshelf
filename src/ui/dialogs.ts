@@ -1,11 +1,11 @@
 // The consent and catalog dialogs, plain DOM. Theme with the --fontshelf-* CSS variables on
 // the container (or any ancestor); strings come from fontT().
-import { GROUP_SAMPLE, WEB_FONTS } from "../catalog";
-import { cssFamily } from "../detect";
-import { loadWebFontPreviews, previewFamily } from "../google";
-import { addRemoteFamily } from "../registry";
-import { hasConsent, isRemoteEnabled, setConsent } from "../shared";
-import { fontT } from "../strings";
+import { GROUP_SAMPLE, WEB_FONTS } from "../catalog.js";
+import { cssFamily } from "../detect.js";
+import { loadWebFontPreviews, previewFamily } from "../google.js";
+import { addRemoteFamily } from "../registry.js";
+import { hasConsent, isRemoteEnabled, setConsent } from "../shared.js";
+import { fontT } from "../strings.js";
 
 const CSS = `
 .fontshelf-overlay { position: fixed; inset: 0; z-index: var(--fontshelf-z, 1000); display: flex; align-items: center; justify-content: center; background: var(--fontshelf-backdrop, rgba(0,0,0,.45)); }

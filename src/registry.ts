@@ -1,9 +1,9 @@
 // The shared font registry: what every editor on the page can offer, and change events.
-import { BASE_FONTS, LOCAL_CANDIDATES, findWebFont } from "./catalog";
-import { canDraw, detectInstalled, hasLocalFontAccess, localFontsPermission, mergeNames, queryLocalFamilies } from "./detect";
-import { loadWebFont, type Fetcher } from "./google";
-import { readFontPrefs, writeFontPrefs } from "./prefs";
-import { emit, hasConsent, isRemoteEnabled, shared } from "./shared";
+import { BASE_FONTS, LOCAL_CANDIDATES, findWebFont } from "./catalog.js";
+import { canDraw, detectInstalled, hasLocalFontAccess, localFontsPermission, mergeNames, queryLocalFamilies } from "./detect.js";
+import { loadWebFont, type Fetcher } from "./google.js";
+import { readFontPrefs, writeFontPrefs } from "./prefs.js";
+import { emit, hasConsent, isRemoteEnabled, shared } from "./shared.js";
 
 export interface FontState {
   /** Fonts the open documents use (every registered document). */

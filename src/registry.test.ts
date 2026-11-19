@@ -3,16 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   addDocumentFonts, createFontSelect, fontT, getFontLocale, getFontState, hasConsent, onFontsChange, openConsentDialog,
   readFontPrefs, requestRemoteFont, setConsent, setFontLocale, setFontStrings, setRemoteEnabled, showInstalledFonts,
-} from "./index";
-import en from "./locales/en";
-import fr from "./locales/fr";
-import de from "./locales/de";
-import es from "./locales/es";
-import pt from "./locales/pt";
-import ru from "./locales/ru";
-import ja from "./locales/ja";
-import zh from "./locales/zh";
-import { resetFontshelf } from "./test-utils";
+} from "./index.js";
+import en from "./locales/en.js";
+import fr from "./locales/fr.js";
+import de from "./locales/de.js";
+import es from "./locales/es.js";
+import pt from "./locales/pt.js";
+import ru from "./locales/ru.js";
+import ja from "./locales/ja.js";
+import zh from "./locales/zh.js";
+import { resetFontshelf } from "./test-utils.js";
 
 beforeEach(() => { resetFontshelf(); setFontLocale("en"); setFontStrings(null); });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); document.body.replaceChildren(); });

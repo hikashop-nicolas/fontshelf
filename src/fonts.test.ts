@@ -4,8 +4,8 @@ import {
   BASE_FONTS, LOCAL_CANDIDATES, WEB_FONTS, axisFallbacks, buildFontGroups, detectFonts, detectFontsAsync,
   fontPresent, googleCssUrl, loadWebFont, mergeNames, readFontPrefs, writeFontPrefs, setRemoteEnabled, setConsent,
   createFontSelect, type Measure,
-} from "./index";
-import { resetFontshelf } from "./test-utils";
+} from "./index.js";
+import { resetFontshelf } from "./test-utils.js";
 
 // A fake canvas: each family has its own widths per script; unknown families draw as the fallback.
 const LATIN: Record<string, number> = { monospace: 10, serif: 11, "sans-serif": 12, Helvetica: 12, "Fake Sans": 13 };

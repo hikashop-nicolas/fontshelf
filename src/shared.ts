@@ -1,6 +1,6 @@
 // Page-wide state shared by every editor, kept on globalThis so two bundled copies of
 // fontshelf still agree. Also the single network gate: host switch + user consent.
-import { readFontPrefs, writeFontPrefs } from "./prefs";
+import { readFontPrefs, writeFontPrefs } from "./prefs.js";
 
 export interface SharedState {
   remoteEnabled: boolean;

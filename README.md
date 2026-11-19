@@ -14,8 +14,8 @@ subedit and the slide and PDF editors of
 npm install github:hikashop-nicolas/fontshelf
 ```
 
-`prepare` builds `dist/` on install (TypeScript to ES modules with extensionless imports,
-for a bundler such as Vite).
+`prepare` builds `dist/` on install (TypeScript to plain ES modules with `.js` import paths,
+so Node, vitest and bundlers all load it).
 
 ## Privacy and consent
 

@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   WEB_FONTS, catalogFiles, embeddableOf, embeddingOf, getFontFile, parseFontInfo, pickCatalogFile, pickLocalFace,
   setConsent, setRemoteEnabled, styleOf, isFontFileCached,
-} from "./index";
-import { makeCollection, makeFont, resetFontshelf } from "./test-utils";
+} from "./index.js";
+import { makeCollection, makeFont, resetFontshelf } from "./test-utils.js";
 
 beforeEach(() => { resetFontshelf(); });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });

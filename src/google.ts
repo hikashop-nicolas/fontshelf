@@ -1,7 +1,7 @@
 // Google Fonts CSS2 loading, for drawing a catalog family in the page. Gated by remoteAllowed().
-import { GROUP_SAMPLE, findWebFont, type WebFont } from "./catalog";
-import { cssFamily } from "./detect";
-import { remoteAllowed } from "./shared";
+import { GROUP_SAMPLE, findWebFont, type WebFont } from "./catalog.js";
+import { cssFamily } from "./detect.js";
+import { remoteAllowed } from "./shared.js";
 
 const GOOGLE_CSS = "https://fonts.googleapis.com/css2";
 const AXES: Record<WebFont["v"], string> = {

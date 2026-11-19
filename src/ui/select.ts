@@ -1,12 +1,12 @@
 // A font picker on a native <select> (robust on touch and screen readers), grouped as
 // "In this document" / "Fonts" / "More fonts". The last group holds action entries
 // ("Show my fonts", "Get more fonts") that run and then restore the previous choice.
-import { BASE_FONTS } from "../catalog";
-import { canDraw, buildFontGroups } from "../detect";
-import { addDocumentFonts, getFontState, isAdded, onFontsChange, restoreFonts, showInstalledFonts } from "../registry";
-import { setRemoteEnabled } from "../shared";
-import { fontT } from "../strings";
-import { requestRemoteFont, showFontToast, type DialogOptions } from "./dialogs";
+import { BASE_FONTS } from "../catalog.js";
+import { canDraw, buildFontGroups } from "../detect.js";
+import { addDocumentFonts, getFontState, isAdded, onFontsChange, restoreFonts, showInstalledFonts } from "../registry.js";
+import { setRemoteEnabled } from "../shared.js";
+import { fontT } from "../strings.js";
+import { requestRemoteFont, showFontToast, type DialogOptions } from "./dialogs.js";
 
 /** Remote fonts: off, or Google Fonts (CSS2 for drawing, the google/fonts repo for files). */
 export type RemoteOption = false | { provider: "google" };

@@ -1,10 +1,10 @@
 // Font files as bytes, for engines that shape or embed fonts themselves (WebGL slides, PDF,
 // libass). Local: queryLocalFonts() blobs. Remote: plain TTF/OTF from the google/fonts repo.
-import { findWebFont } from "./catalog";
-import { FONT_FILES, type CatalogFileTuple } from "./catalog-files";
-import { hasLocalFontAccess, localFontsPermission, queryLocalFonts, type LocalFontData } from "./detect";
-import { embeddableOf, parseFontInfo, type Embedding, type FontFormat } from "./sfnt";
-import { remoteAllowed } from "./shared";
+import { findWebFont } from "./catalog.js";
+import { FONT_FILES, type CatalogFileTuple } from "./catalog-files.js";
+import { hasLocalFontAccess, localFontsPermission, queryLocalFonts, type LocalFontData } from "./detect.js";
+import { embeddableOf, parseFontInfo, type Embedding, type FontFormat } from "./sfnt.js";
+import { remoteAllowed } from "./shared.js";
 
 export const GOOGLE_FONTS_RAW = "https://raw.githubusercontent.com/google/fonts/main";
 

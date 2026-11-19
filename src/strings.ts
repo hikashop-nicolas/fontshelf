@@ -1,13 +1,13 @@
 // UI strings in 8 languages, with a host override: a partial dictionary or a resolver function.
-import en from "./locales/en";
-import fr from "./locales/fr";
-import de from "./locales/de";
-import es from "./locales/es";
-import pt from "./locales/pt";
-import ru from "./locales/ru";
-import ja from "./locales/ja";
-import zh from "./locales/zh";
-import type { WebFontGroup } from "./catalog";
+import en from "./locales/en.js";
+import fr from "./locales/fr.js";
+import de from "./locales/de.js";
+import es from "./locales/es.js";
+import pt from "./locales/pt.js";
+import ru from "./locales/ru.js";
+import ja from "./locales/ja.js";
+import zh from "./locales/zh.js";
+import type { WebFontGroup } from "./catalog.js";
 
 export type FontStringKey =
   | "font" | "cancel" | "close" | "fontsInDocument" | "fontsAll" | "fontsMore" | "fontsShowMine"

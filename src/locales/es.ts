@@ -1,5 +1,5 @@
 // Spanish strings.
-import type { FontStrings } from "../strings";
+import type { FontStrings } from "../strings.js";
 
 const strings: Partial<FontStrings> = {
   font: "Fuente",

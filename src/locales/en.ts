@@ -1,5 +1,5 @@
 // English strings.
-import type { FontStrings } from "../strings";
+import type { FontStrings } from "../strings.js";
 
 const strings: FontStrings = {
   font: "Font",
