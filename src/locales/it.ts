@@ -1,0 +1,39 @@
+// Italian strings.
+import type { FontStrings } from "../strings.js";
+
+const strings: Partial<FontStrings> = {
+  font: "Carattere",
+  cancel: "Annulla",
+  fontsInDocument: "In questo documento",
+  fontsAll: "Caratteri",
+  fontsMore: "Altri caratteri",
+  fontsShowMine: "Mostra i miei caratteri…",
+  fontsGetMore: "Ottieni altri caratteri…",
+  fontMissing: "{name} (non installato)",
+  fontsFound: "Altri {n} caratteri disponibili",
+  fontsNoneFound: "Nessun altro carattere trovato",
+  fontsGetTitle: "Ottieni altri caratteri",
+  fontsConsent: "I caratteri vengono scaricati da Google Fonts. Serve una connessione a Internet e Google riceve ogni richiesta (compreso il tuo indirizzo IP). Il documento non viene mai inviato.",
+  fontsContinue: "Continua",
+  fontsCatalogNote: "Da Google Fonts. Scegli un carattere per scaricarlo e applicarlo alla selezione.",
+  fontsSearch: "Cerca caratteri",
+  fontsLoading: "Caricamento di {name}…",
+  fontsLoadFailed: "Impossibile caricare {name}. Controlla la connessione a Internet.",
+  fontGroup_compat: "Compatibili con Office",
+  fontGroup_sans: "Senza grazie",
+  fontGroup_serif: "Con grazie",
+  fontGroup_mono: "A spaziatura fissa",
+  fontGroup_display: "Titolazione",
+  fontGroup_hand: "Scrittura a mano",
+  fontGroup_ja: "Giapponese",
+  fontGroup_zh: "Cinese",
+  fontGroup_ko: "Coreano",
+  fontGroup_ar: "Arabo",
+  fontGroup_he: "Ebraico",
+  fontGroup_cyr: "Cirillico",
+  fontGroup_deva: "Devanagari",
+  fontGroup_th: "Thailandese",
+  close: "Chiudi",
+};
+
+export default strings;

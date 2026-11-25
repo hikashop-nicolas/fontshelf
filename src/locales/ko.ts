@@ -1,0 +1,39 @@
+// Korean strings.
+import type { FontStrings } from "../strings.js";
+
+const strings: Partial<FontStrings> = {
+  font: "글꼴",
+  cancel: "취소",
+  fontsInDocument: "이 문서에 사용됨",
+  fontsAll: "글꼴",
+  fontsMore: "추가 글꼴",
+  fontsShowMine: "내 글꼴 표시…",
+  fontsGetMore: "글꼴 더 받기…",
+  fontMissing: "{name} (설치되지 않음)",
+  fontsFound: "{n}개의 글꼴을 더 사용할 수 있습니다",
+  fontsNoneFound: "다른 글꼴을 찾을 수 없습니다",
+  fontsGetTitle: "글꼴 더 받기",
+  fontsConsent: "글꼴은 Google Fonts에서 다운로드됩니다. 인터넷 연결이 필요하며, Google은 각 요청(IP 주소 포함)을 수신합니다. 문서는 전송되지 않습니다.",
+  fontsContinue: "계속",
+  fontsCatalogNote: "Google Fonts 제공. 글꼴을 선택하면 다운로드되어 선택 영역에 적용됩니다.",
+  fontsSearch: "글꼴 검색",
+  fontsLoading: "{name} 불러오는 중…",
+  fontsLoadFailed: "{name}을(를) 불러올 수 없습니다. 인터넷 연결을 확인하세요.",
+  fontGroup_compat: "Office 호환",
+  fontGroup_sans: "산세리프",
+  fontGroup_serif: "세리프",
+  fontGroup_mono: "고정폭",
+  fontGroup_display: "디스플레이",
+  fontGroup_hand: "손글씨",
+  fontGroup_ja: "일본어",
+  fontGroup_zh: "중국어",
+  fontGroup_ko: "한국어",
+  fontGroup_ar: "아랍어",
+  fontGroup_he: "히브리어",
+  fontGroup_cyr: "키릴 문자",
+  fontGroup_deva: "데바나가리",
+  fontGroup_th: "태국어",
+  close: "닫기",
+};
+
+export default strings;

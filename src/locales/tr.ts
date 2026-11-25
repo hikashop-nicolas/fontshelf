@@ -1,0 +1,39 @@
+// Turkish strings.
+import type { FontStrings } from "../strings.js";
+
+const strings: Partial<FontStrings> = {
+  font: "Yazı tipi",
+  cancel: "İptal",
+  fontsInDocument: "Bu belgede",
+  fontsAll: "Yazı tipleri",
+  fontsMore: "Diğer yazı tipleri",
+  fontsShowMine: "Yazı tiplerimi göster…",
+  fontsGetMore: "Daha fazla yazı tipi edinin…",
+  fontMissing: "{name} (yüklü değil)",
+  fontsFound: "{n} yazı tipi daha kullanılabilir",
+  fontsNoneFound: "Başka yazı tipi bulunamadı",
+  fontsGetTitle: "Daha fazla yazı tipi edinin",
+  fontsConsent: "Yazı tipleri Google Fonts'tan indirilir. Bunun için internet bağlantısı gerekir ve Google her isteği (IP adresiniz dahil) alır. Belgeniz hiçbir zaman gönderilmez.",
+  fontsContinue: "Devam",
+  fontsCatalogNote: "Google Fonts'tan. İndirip seçime uygulamak için bir yazı tipi seçin.",
+  fontsSearch: "Yazı tipi arayın",
+  fontsLoading: "{name} yükleniyor…",
+  fontsLoadFailed: "{name} yüklenemedi. İnternet bağlantınızı denetleyin.",
+  fontGroup_compat: "Office uyumlu",
+  fontGroup_sans: "Tırnaksız",
+  fontGroup_serif: "Tırnaklı",
+  fontGroup_mono: "Eş aralıklı",
+  fontGroup_display: "Başlık",
+  fontGroup_hand: "El yazısı",
+  fontGroup_ja: "Japonca",
+  fontGroup_zh: "Çince",
+  fontGroup_ko: "Korece",
+  fontGroup_ar: "Arapça",
+  fontGroup_he: "İbranice",
+  fontGroup_cyr: "Kiril",
+  fontGroup_deva: "Devanagari",
+  fontGroup_th: "Tayca",
+  close: "Kapat",
+};
+
+export default strings;

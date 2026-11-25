@@ -1,0 +1,39 @@
+// Polish strings.
+import type { FontStrings } from "../strings.js";
+
+const strings: Partial<FontStrings> = {
+  font: "Czcionka",
+  cancel: "Anuluj",
+  fontsInDocument: "W tym dokumencie",
+  fontsAll: "Czcionki",
+  fontsMore: "Więcej czcionek",
+  fontsShowMine: "Pokaż moje czcionki…",
+  fontsGetMore: "Pobierz więcej czcionek…",
+  fontMissing: "{name} (niezainstalowana)",
+  fontsFound: "Dostępne dodatkowe czcionki: {n}",
+  fontsNoneFound: "Nie znaleziono innych czcionek",
+  fontsGetTitle: "Pobierz więcej czcionek",
+  fontsConsent: "Czcionki są pobierane z Google Fonts. Wymaga to połączenia z internetem, a Google otrzymuje każde żądanie (wraz z adresem IP). Dokument nigdy nie jest wysyłany.",
+  fontsContinue: "Kontynuuj",
+  fontsCatalogNote: "Z Google Fonts. Wybranie czcionki powoduje jej pobranie i zastosowanie do zaznaczenia.",
+  fontsSearch: "Szukaj czcionek",
+  fontsLoading: "Wczytywanie {name}…",
+  fontsLoadFailed: "Nie można wczytać {name}. Sprawdź połączenie z internetem.",
+  fontGroup_compat: "Zgodne z Office",
+  fontGroup_sans: "Bezszeryfowe",
+  fontGroup_serif: "Szeryfowe",
+  fontGroup_mono: "O stałej szerokości",
+  fontGroup_display: "Ozdobne",
+  fontGroup_hand: "Odręczne",
+  fontGroup_ja: "Japońskie",
+  fontGroup_zh: "Chińskie",
+  fontGroup_ko: "Koreańskie",
+  fontGroup_ar: "Arabskie",
+  fontGroup_he: "Hebrajskie",
+  fontGroup_cyr: "Cyrylica",
+  fontGroup_deva: "Dewanagari",
+  fontGroup_th: "Tajskie",
+  close: "Zamknij",
+};
+
+export default strings;
