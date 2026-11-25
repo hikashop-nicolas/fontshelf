@@ -5,17 +5,18 @@ import { cssFamily } from "../detect.js";
 import { loadWebFontPreviews, previewFamily } from "../google.js";
 import { addRemoteFamily } from "../registry.js";
 import { hasConsent, isRemoteEnabled, setConsent } from "../shared.js";
-import { fontT } from "../strings.js";
+import { fontT, fontUiLang } from "../strings.js";
 
 const CSS = `
+.fontshelf-overlay:lang(ko), .fontshelf-toast:lang(ko) { --fontshelf-ui-family: system-ui, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Noto Sans CJK KR", "Nanum Gothic", sans-serif; }
 .fontshelf-overlay { position: fixed; inset: 0; z-index: var(--fontshelf-z, 1000); display: flex; align-items: center; justify-content: center; background: var(--fontshelf-backdrop, rgba(0,0,0,.45)); }
 .fontshelf-overlay[hidden] { display: none; }
-.fontshelf-dialog { box-sizing: border-box; min-width: 280px; max-width: 400px; background: var(--fontshelf-bg, #2b2f36); color: var(--fontshelf-fg, #e6e8ec); border: 1px solid var(--fontshelf-border, #4a4f57); border-radius: 10px; padding: 16px; box-shadow: 0 12px 40px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 10px; font: var(--fontshelf-font, 13px/1.3 system-ui, sans-serif); }
+.fontshelf-dialog { box-sizing: border-box; min-width: 280px; max-width: 400px; background: var(--fontshelf-bg, #2b2f36); color: var(--fontshelf-fg, #e6e8ec); border: 1px solid var(--fontshelf-border, #4a4f57); border-radius: 10px; padding: 16px; box-shadow: 0 12px 40px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 10px; font: var(--fontshelf-font, 13px/1.3 var(--fontshelf-ui-family, system-ui, sans-serif)); }
 .fontshelf-dialog.fontshelf-catalog { width: min(440px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 32px); }
 .fontshelf-title { font-size: 15px; font-weight: 600; }
 .fontshelf-note { margin: 0; line-height: 1.45; opacity: .9; }
 .fontshelf-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 4px; }
-.fontshelf-button { font: 13px/1 system-ui, sans-serif; padding: 6px 10px; border: 0; border-radius: 5px; background: transparent; color: inherit; cursor: pointer; }
+.fontshelf-button { font: 13px/1 var(--fontshelf-ui-family, system-ui, sans-serif); padding: 6px 10px; border: 0; border-radius: 5px; background: transparent; color: inherit; cursor: pointer; }
 .fontshelf-button:hover { background: var(--fontshelf-hover-strong, #3a3f47); }
 .fontshelf-button.fontshelf-primary { background: var(--fontshelf-accent, #6e7bff); color: var(--fontshelf-accent-fg, #fff); }
 .fontshelf-button:focus-visible, .fontshelf-item:focus-visible, .fontshelf-search:focus-visible { outline: 2px solid var(--fontshelf-accent, #6e7bff); outline-offset: 1px; }
@@ -27,7 +28,7 @@ const CSS = `
 .fontshelf-item:hover { background: var(--fontshelf-hover, #1f2329); border-color: var(--fontshelf-border, #4a4f57); }
 .fontshelf-sample { margin-left: auto; opacity: .8; }
 .fontshelf-status { min-height: 1.3em; font-size: 12px; }
-.fontshelf-toast { position: absolute; z-index: 20; top: 8px; left: 12px; max-width: 300px; background: var(--fontshelf-toast-bg, #fff); color: var(--fontshelf-toast-fg, #222); border: 1px solid #c9c9c9; border-radius: 7px; box-shadow: 0 6px 22px rgba(0,0,0,.32); padding: 9px 11px; font: 13px/1.45 system-ui, sans-serif; }
+.fontshelf-toast { position: absolute; z-index: 20; top: 8px; left: 12px; max-width: 300px; background: var(--fontshelf-toast-bg, #fff); color: var(--fontshelf-toast-fg, #222); border: 1px solid #c9c9c9; border-radius: 7px; box-shadow: 0 6px 22px rgba(0,0,0,.32); padding: 9px 11px; font: 13px/1.45 var(--fontshelf-ui-family, system-ui, sans-serif); }
 @media (prefers-reduced-motion: reduce) { .fontshelf-overlay, .fontshelf-toast { transition: none !important; } }
 `;
 
@@ -52,11 +53,18 @@ let seq = 0;
 interface Shell { overlay: HTMLElement; panel: HTMLElement; actions: HTMLElement; close: () => void }
 
 // A modal: role=dialog, Tab trapped, Escape and backdrop close, focus returned to the opener.
+// lang picks CJK glyph variants and Turkish casing (the uppercase group labels).
+export function setLang(el: HTMLElement): void {
+  const lang = fontUiLang();
+  if (lang) el.lang = lang;
+}
+
 function shell(cls: string, title: string, opts: DialogOptions, onClose: () => void, initial: () => HTMLElement | null): Shell {
   injectFontshelfStyles();
   const opener = document.activeElement as HTMLElement | null;
   const overlay = document.createElement("div");
   overlay.className = "fontshelf-overlay";
+  setLang(overlay);
   const panel = document.createElement("div");
   panel.className = `fontshelf-dialog ${cls}${opts.className ? ` ${opts.className}` : ""}`;
   panel.setAttribute("role", "dialog");
@@ -232,6 +240,7 @@ export function showFontToast(container: HTMLElement, text: string, ms = 2500): 
   injectFontshelfStyles();
   const el = document.createElement("div");
   el.className = "fontshelf-toast";
+  setLang(el);
   el.setAttribute("role", "status");
   el.textContent = text;
   container.appendChild(el);

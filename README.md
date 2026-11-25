@@ -226,13 +226,15 @@ opener. Theme with CSS variables on the container or any ancestor:
 | `--fontshelf-input-bg` | `#1f2329` |
 | `--fontshelf-backdrop` | `rgba(0,0,0,.45)` |
 | `--fontshelf-toast-bg` / `--fontshelf-toast-fg` | `#fff` / `#222` |
-| `--fontshelf-font` | `13px/1.3 system-ui, sans-serif` |
+| `--fontshelf-font` | `13px/1.3 system-ui, sans-serif` (Korean adds Apple SD Gothic Neo, Malgun Gothic, Noto Sans KR) |
 | `--fontshelf-z` | `1000` |
 
 ### Strings
 
-English, French, German, Spanish, Portuguese, Russian, Japanese and Simplified Chinese are
-built in. English is the default.
+English, French, German, Spanish, Portuguese, Russian, Japanese, Simplified Chinese,
+Italian, Polish, Korean and Turkish are built in. English is the default. Once `setFontLocale` has been
+called, the dialogs, toast and picker carry that `lang`, so CJK glyphs and Turkish casing
+follow it; Korean also gets installed Hangul fonts ahead of the fallback, nothing downloaded.
 
 ```ts
 setFontLocale("fr");             // or "pt-BR" -> pt; unknown -> en

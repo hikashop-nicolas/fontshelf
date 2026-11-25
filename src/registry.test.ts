@@ -12,6 +12,10 @@ import pt from "./locales/pt.js";
 import ru from "./locales/ru.js";
 import ja from "./locales/ja.js";
 import zh from "./locales/zh.js";
+import itL from "./locales/it.js";
+import pl from "./locales/pl.js";
+import ko from "./locales/ko.js";
+import tr from "./locales/tr.js";
 import { resetFontshelf } from "./test-utils.js";
 
 beforeEach(() => { resetFontshelf(); setFontLocale("en"); setFontStrings(null); });
@@ -55,7 +59,7 @@ describe("registry", () => {
 });
 
 describe("strings", () => {
-  const LOCALES = { en, fr, de, es, pt, ru, ja, zh };
+  const LOCALES = { en, fr, de, es, pt, ru, ja, zh, it: itL, pl, ko, tr };
   it("has every key in all 8 languages, without em-dashes", () => {
     for (const [code, dict] of Object.entries(LOCALES)) {
       expect(Object.keys(dict).sort(), code).toEqual(Object.keys(en).sort());
@@ -114,5 +118,21 @@ describe("dialogs", () => {
     (document.querySelector(".fontshelf-consent .fontshelf-button:not(.fontshelf-primary)") as HTMLButtonElement).click();
     expect(await p).toBe(false);
     expect(hasConsent()).toBe(false);
+  });
+  it("tags its UI with the locale and gives Korean a Hangul font stack", async () => {
+    setFontLocale("ko-KR");
+    const p = openConsentDialog();
+    const overlay = document.querySelector<HTMLElement>(".fontshelf-overlay")!;
+    expect(overlay.lang).toBe("ko");
+    expect(overlay.textContent).toContain("Google Fonts");
+    const css = [...document.querySelectorAll("style")].map((el) => el.textContent).join("");
+    expect(css).toMatch(/:lang\(ko\)[^}]*Apple SD Gothic Neo[^}]*Malgun Gothic[^}]*Noto Sans KR/);
+    expect(css).not.toMatch(/@import|url\(/);
+    (overlay.querySelector(".fontshelf-button:not(.fontshelf-primary)") as HTMLButtonElement).click();
+    await p;
+    setFontLocale("tr");
+    const sel = createFontSelect({ apply: () => {} });
+    expect(sel.select.lang).toBe("tr");
+    sel.teardown();
   });
 });

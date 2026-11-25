@@ -6,7 +6,7 @@ import { canDraw, buildFontGroups } from "../detect.js";
 import { addDocumentFonts, getFontState, isAdded, onFontsChange, restoreFonts, showInstalledFonts } from "../registry.js";
 import { setRemoteEnabled } from "../shared.js";
 import { fontT } from "../strings.js";
-import { requestRemoteFont, showFontToast, type DialogOptions } from "./dialogs.js";
+import { requestRemoteFont, setLang, showFontToast, type DialogOptions } from "./dialogs.js";
 
 /** Remote fonts: off, or Google Fonts (CSS2 for drawing, the google/fonts repo for files). */
 export type RemoteOption = false | { provider: "google" };
@@ -79,6 +79,7 @@ export function createFontSelect(opts: FontSelectOptions): FontSelect {
 
   const render = (): void => {
     const keep = select.value;
+    setLang(select);
     const st = getFontState();
     const groups = buildFontGroups({ docFonts, base, extra: [...st.installed, ...st.added], canDraw: (n) => isAdded(n) || canDraw(n) });
     all = [...groups.doc.map((d) => d.name), ...groups.fonts];
