@@ -34,6 +34,12 @@ const strings: Partial<FontStrings> = {
   fontGroup_deva: "Dewanagari",
   fontGroup_th: "Tajskie",
   close: "Zamknij",
+  fontsLoadFile: "Wczytaj plik czcionki…",
+  fontsFileInvalid: "Nie udało się odczytać {name} jako czcionki.",
+  fontsFileTooBig: "{name} jest za duży (ponad {size} MB).",
+  fontsFileSessionOnly: "{name} można używać teraz, ale nie zostanie zachowana na następny raz.",
+  fontsChooseFace: "Wybierz krój",
+  fontsAllFaces: "Wszystkie kroje",
 };
 
 export default strings;

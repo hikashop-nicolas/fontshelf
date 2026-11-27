@@ -1,12 +1,12 @@
 // A font picker on a native <select> (robust on touch and screen readers), grouped as
 // "In this document" / "Fonts" / "More fonts". The last group holds action entries
-// ("Show my fonts", "Get more fonts") that run and then restore the previous choice.
+// ("Show my fonts", "Load a font file", "Get more fonts") that run and then restore the previous choice.
 import { BASE_FONTS } from "../catalog.js";
 import { canDraw, buildFontGroups } from "../detect.js";
 import { addDocumentFonts, getFontState, isAdded, onFontsChange, restoreFonts, showInstalledFonts } from "../registry.js";
 import { setRemoteEnabled } from "../shared.js";
 import { fontT } from "../strings.js";
-import { requestRemoteFont, setLang, showFontToast, type DialogOptions } from "./dialogs.js";
+import { requestFontFile, requestRemoteFont, setLang, showFontToast, type DialogOptions } from "./dialogs.js";
 
 /** Remote fonts: off, or Google Fonts (CSS2 for drawing, the google/fonts repo for files). */
 export type RemoteOption = false | { provider: "google" };
@@ -16,6 +16,8 @@ export interface FontSelectOptions {
   docFonts?: readonly string[];
   /** Offer "Show my fonts". Default true. */
   local?: boolean;
+  /** Offer "Load a font file" (.ttf, .otf, .ttc, .woff, .woff2). Default true. */
+  file?: boolean;
   /** Offer "Get more fonts" (and enable the network after consent). Default off. */
   remote?: RemoteOption;
   /** Always-offered fonts, kept when drawable. Default BASE_FONTS. */
@@ -61,10 +63,12 @@ const opt = (text: string, value: string): HTMLOptionElement => {
 const ACTION = "\u0001"; // value prefix of the action entries
 export const SHOW_MINE_VALUE = `${ACTION}local`;
 export const GET_MORE_VALUE = `${ACTION}remote`;
+export const LOAD_FILE_VALUE = `${ACTION}file`;
 
 export function createFontSelect(opts: FontSelectOptions): FontSelect {
   const remote = !!opts.remote && opts.remote.provider === "google";
   const localOn = opts.local !== false;
+  const fileOn = opts.file !== false;
   const base = opts.base ?? BASE_FONTS;
   const dialogOpts: DialogOptions = { container: opts.container, className: opts.dialogClass };
   if (remote) setRemoteEnabled(true);
@@ -97,6 +101,7 @@ export function createFontSelect(opts: FontSelectOptions): FontSelect {
     group(fontT("fontsAll"), groups.fonts.map((f) => opt(f, f)));
     const actions: HTMLOptionElement[] = [];
     if (localOn && !st.installedFull) actions.push(opt(fontT("fontsShowMine"), SHOW_MINE_VALUE));
+    if (fileOn) actions.push(opt(fontT("fontsLoadFile"), LOAD_FILE_VALUE));
     if (remote) actions.push(opt(fontT("fontsGetMore"), GET_MORE_VALUE));
     group(fontT("fontsMore"), actions);
     select.replaceChildren(...parts);
@@ -130,6 +135,7 @@ export function createFontSelect(opts: FontSelectOptions): FontSelect {
     opts.onAction?.();
     if (v === SHOW_MINE_VALUE) void showMine();
     else if (v === GET_MORE_VALUE) void getMore();
+    else if (v === LOAD_FILE_VALUE) void loadFile();
   });
 
   const notify = (text: string): void => {
@@ -146,8 +152,7 @@ export function createFontSelect(opts: FontSelectOptions): FontSelect {
     notify(n > 0 ? fontT("fontsFound", { n }) : fontT("fontsNoneFound"));
   };
 
-  const getMore = async (): Promise<void> => {
-    const family = await requestRemoteFont(dialogOpts);
+  const picked = (family: string | null): void => {
     if (!family || disposed) return;
     render();
     opts.onPicked?.();
@@ -155,6 +160,8 @@ export function createFontSelect(opts: FontSelectOptions): FontSelect {
     prev = family;
     opts.apply(family);
   };
+  const getMore = async (): Promise<void> => picked(await requestRemoteFont(dialogOpts));
+  const loadFile = async (): Promise<void> => picked(await requestFontFile({ ...dialogOpts, notify }));
 
   const off = onFontsChange(() => { if (!disposed) render(); });
   render();

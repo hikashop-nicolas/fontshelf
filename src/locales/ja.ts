@@ -34,6 +34,12 @@ const strings: Partial<FontStrings> = {
   fontGroup_deva: "デーヴァナーガリー",
   fontGroup_th: "タイ語",
   close: "閉じる",
+  fontsLoadFile: "フォントファイルを読み込む…",
+  fontsFileInvalid: "{name} をフォントとして読み込めませんでした。",
+  fontsFileTooBig: "{name} は大きすぎます（{size} MB 超）。",
+  fontsFileSessionOnly: "{name} は今は使えますが、次回までは保存されません。",
+  fontsChooseFace: "スタイルを選択",
+  fontsAllFaces: "すべてのスタイル",
 };
 
 export default strings;

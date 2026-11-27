@@ -17,6 +17,7 @@ export type FontStringKey =
   | "font" | "cancel" | "close" | "fontsInDocument" | "fontsAll" | "fontsMore" | "fontsShowMine"
   | "fontsGetMore" | "fontMissing" | "fontsFound" | "fontsNoneFound" | "fontsGetTitle" | "fontsConsent"
   | "fontsContinue" | "fontsCatalogNote" | "fontsSearch" | "fontsLoading" | "fontsLoadFailed"
+  | "fontsLoadFile" | "fontsFileInvalid" | "fontsFileTooBig" | "fontsFileSessionOnly" | "fontsChooseFace" | "fontsAllFaces"
   | `fontGroup_${WebFontGroup}`;
 
 export type FontStrings = Record<FontStringKey, string>;

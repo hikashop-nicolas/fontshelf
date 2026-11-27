@@ -3,6 +3,7 @@
 import { findWebFont } from "./catalog.js";
 import { FONT_FILES, type CatalogFileTuple } from "./catalog-files.js";
 import { hasLocalFontAccess, localFontsPermission, queryLocalFonts, type LocalFontData } from "./detect.js";
+import { loadedFace } from "./loaded.js";
 import { renameFace } from "./rename.js";
 import { embeddableOf, parseFontInfo, type Embedding, type FontFormat } from "./sfnt.js";
 import { remoteAllowed } from "./shared.js";
@@ -51,7 +52,8 @@ export interface FontFile {
   bytes: Uint8Array;
   /** The family asked for, in its canonical spelling when known. */
   family: string;
-  source: "local" | "remote";
+  /** "loaded": a file the user loaded (loadFontFile). */
+  source: "loaded" | "local" | "remote";
   format: FontFormat;
   /** true: may be embedded; "restricted": the font forbids embedding; false: not usable (bitmap only, unreadable). */
   embeddable: boolean | "restricted";
@@ -77,6 +79,8 @@ export interface FontFile {
 export interface GetFontFileOptions {
   weight?: number;
   italic?: boolean;
+  /** Try the fonts the user loaded from files (default true). */
+  loaded?: boolean;
   /** Try the installed font (default true). */
   local?: boolean;
   /** Try the catalog download (default true; still needs remoteAllowed()). */
@@ -131,6 +135,13 @@ async function localFile(family: string, o: GetFontFileOptions): Promise<FontFil
   let bytes: Uint8Array;
   try { bytes = new Uint8Array(await (await face.blob()).arrayBuffer()); } catch { return null; }
   return describe(bytes, face.family, "local", face.postscriptName);
+}
+
+function loadedFile(family: string, o: GetFontFileOptions): FontFile | null {
+  const face = loadedFace(family, o.weight, o.italic);
+  if (!face) return null;
+  // A .ttc face and a WOFF come as a plain sfnt.
+  return describe(face.bytes, face.family, "loaded");
 }
 
 // --- remote -------------------------------------------------------------------------------------
@@ -246,14 +257,15 @@ function describe(bytes: Uint8Array, family: string, source: FontFile["source"],
 }
 
 /**
- * The bytes of a font file for `family`: the installed font first (Chromium with local-fonts
- * permission), then the catalog's static TTF from Google Fonts when remote is allowed.
+ * The bytes of a font file for `family`: a font the user loaded from a file first, then the
+ * installed font (Chromium with local-fonts permission), then the catalog's static TTF from Google Fonts when remote is allowed.
  * Null when neither is available (a family found only by canvas probing has no bytes).
  */
 export async function getFontFile(family: string, opts: GetFontFileOptions = {}): Promise<FontFile | null> {
   const o = { weight: 400, italic: false, ...opts };
   let f: FontFile | null = null;
-  if (o.local !== false) f = await localFile(family, o);
+  if (o.loaded !== false) f = loadedFile(family, o);
+  if (!f && o.local !== false) f = await localFile(family, o);
   if (!f && o.remote !== false) f = await remoteFile(family, o);
   return f;
 }

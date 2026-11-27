@@ -20,7 +20,14 @@ export type { Fetcher } from "./google.js";
 export { getFontState, onFontsChange, addDocumentFonts, isAdded, showInstalledFonts, addRemoteFamily, restoreFonts } from "./registry.js";
 export type { FontState } from "./registry.js";
 
-export { parseFontInfo, embeddingOf, embeddableOf } from "./sfnt.js";
+export { parseFontInfo, embeddingOf, embeddableOf, scriptsOf } from "./sfnt.js";
+export { woffToSfnt, woff2Tables, extractFace } from "./woff.js";
+
+export {
+  MAX_FONT_FILE_BYTES, MAX_STORED_FONT_BYTES, readFontFaces, loadFontFile, restoreLoadedFonts, getLoadedFonts, loadedFamilies,
+  removeLoadedFont,
+} from "./loaded.js";
+export type { FontFileFace, LoadedFont, LoadFontError, LoadFontResult } from "./loaded.js";
 export { renameFace, isNamedAs, faceNames } from "./rename.js";
 export type { FontInfo, FontFormat, Embedding } from "./sfnt.js";
 
@@ -32,8 +39,11 @@ export type { CatalogFile, CatalogFamilyFiles, FontFile, GetFontFileOptions } fr
 export { setFontLocale, getFontLocale, setFontStrings, fontT, fontLocales } from "./strings.js";
 export type { FontStringKey, FontStrings, FontStringResolver } from "./strings.js";
 
-export { injectFontshelfStyles, openConsentDialog, openCatalogDialog, requestRemoteFont, showFontToast } from "./ui/dialogs.js";
+export {
+  injectFontshelfStyles, openConsentDialog, openCatalogDialog, requestRemoteFont, showFontToast, FONT_FILE_ACCEPT, pickFontFile,
+  openFaceDialog, requestFontFile,
+} from "./ui/dialogs.js";
 export type { DialogOptions } from "./ui/dialogs.js";
 
-export { createFontSelect, SHOW_MINE_VALUE, GET_MORE_VALUE } from "./ui/select.js";
+export { createFontSelect, SHOW_MINE_VALUE, GET_MORE_VALUE, LOAD_FILE_VALUE } from "./ui/select.js";
 export type { RemoteOption, FontSelectOptions, FontSelect } from "./ui/select.js";

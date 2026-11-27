@@ -34,6 +34,12 @@ const strings: FontStrings = {
   fontGroup_deva: "Devanagari",
   fontGroup_th: "Thai",
   close: "Close",
+  fontsLoadFile: "Load a font file…",
+  fontsFileInvalid: "Could not read {name} as a font.",
+  fontsFileTooBig: "{name} is too large (over {size} MB).",
+  fontsFileSessionOnly: "{name} can be used now but will not be kept for next time.",
+  fontsChooseFace: "Choose a face",
+  fontsAllFaces: "All faces",
 };
 
 export default strings;

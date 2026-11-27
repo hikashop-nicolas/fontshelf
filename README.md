@@ -1,7 +1,8 @@
 # fontshelf
 
-One font service for browser editors. It finds the fonts installed on the device, offers a
-curated catalog of 165 Google Fonts families behind a single in-app consent, hands engines
+One font service for browser editors. It finds the fonts installed on the device, loads the
+user's own font files, offers a curated catalog of 165 Google Fonts families behind a single
+in-app consent, hands engines
 the plain TTF/OTF bytes they need (WebGL text, PDF writers, libass), says whether a font may
 be embedded, and keeps every editor on a page in sync. Framework-agnostic, plain DOM, no
 runtime dependencies.
@@ -53,14 +54,53 @@ remoteAllowed(): boolean                         // enabled && consent
 
 getFontState(): FontState
 // { document: string[]; installed: string[]; installedFull: boolean; added: string[];
-//   base: string[]; remoteEnabled: boolean; consent: boolean }
+//   loaded: string[]; base: string[]; remoteEnabled: boolean; consent: boolean }
+// added = web families and font-file families usable in the page; loaded = the font-file ones
 onFontsChange(listener: () => void): () => void  // returns unsubscribe
 addDocumentFonts(names: readonly string[]): () => void  // returns unregister
-isAdded(family: string): boolean                 // a web family loaded in this page
+isAdded(family: string): boolean                 // a web family or font file loaded in this page
 showInstalledFonts(opts?: { gesture?: boolean; candidates?: readonly string[] }): Promise<{ found: number; full: boolean }>
 addRemoteFamily(family: string, fetcher?: Fetcher): Promise<boolean>   // CSS2 load, remembered
-restoreFonts(opts?: { local?: boolean; remote?: boolean; docFonts?: readonly string[] }): void
+restoreFonts(opts?: { local?: boolean; remote?: boolean; loaded?: boolean; docFonts?: readonly string[] }): void
 ```
+
+`restoreFonts` also brings back the font files loaded in earlier sessions (unless `loaded: false`).
+
+### Fonts loaded from files
+
+```ts
+requestFontFile(opts?: DialogOptions & { accept?: string; notify?: (text: string) => void; file?: File }): Promise<string | null>
+readFontFaces(src: Blob | Uint8Array, name?): Promise<FontFileFace[] | null>   // null: not a font
+loadFontFile(src: Blob | Uint8Array, opts?: { name?: string; faces?: number[]; persist?: boolean }): Promise<LoadFontResult>
+// { ok: true; family; fonts: LoadedFont[]; persisted } | { ok: false; error: "invalid" | "too-big" }
+restoreLoadedFonts(): Promise<number>      // once per page; restoreFonts calls it
+getLoadedFonts(): LoadedFont[]             // family, style, weight, italic, format, embedding, embeddable,
+                                           // noSubsetting, variable, scripts, fileName, persisted
+loadedFamilies(): string[]
+removeLoadedFont(family): Promise<void>
+pickFontFile(opts?): Promise<File | null>  // the bare file picker
+openFaceDialog(faces, opts?): Promise<number[] | null>
+MAX_FONT_FILE_BYTES     // 50 MB: larger files are refused
+MAX_STORED_FONT_BYTES   // 200 MB kept across sessions; past it a file works for the session only
+FONT_FILE_ACCEPT
+```
+
+- `requestFontFile` is "Load a font file": a hidden `<input type="file">` appended to the
+  container (so Android WebViews such as Capacitor deliver the change), a face choice for a
+  `.ttc` with several faces (one face, or "All faces"), then `loadFontFile`. Call it from a click.
+  `accept` lists extensions and the MIME types Android document providers report, including
+  `application/octet-stream`; the content is checked whatever the picker let through.
+- Formats: `.ttf`, `.otf`, `.ttc` (each face extracted to a standalone font), `.woff` (unwrapped
+  to its TTF/OTF), `.woff2` (drawn in the page only: its names are read when the browser has a
+  Brotli `DecompressionStream`, else family, weight and style are guessed from the file name, as in Chrome today;
+  engines get no bytes for it).
+- The family (name ID 16, else 1), style (ID 17, else 2), weight, italic, the scripts the OS/2
+  Unicode ranges claim and the fsType embedding permission are read from the file. The family is
+  drawn in the page with `FontFace`, listed by every picker (it is in `added` and `loaded`),
+  and `getFontFile` serves its bytes first (`source: "loaded"`), nearest weight and italic.
+- Kept in IndexedDB (`fontshelf` database, `loaded` store) as the file given, once per file
+  (same bytes, same entry). No IndexedDB (private mode, blocked storage) or a full store: the
+  font works until the page closes, and the result says `persisted: false`.
 
 `showInstalledFonts({ gesture: true })` is "show my fonts": call it from a click so the
 permission prompt may appear; without `gesture` it only uses an already granted permission.
@@ -73,6 +113,7 @@ getFontFile(family: string, opts?: GetFontFileOptions): Promise<FontFile | null>
 interface GetFontFileOptions {
   weight?: number;     // default 400
   italic?: boolean;    // default false
+  loaded?: boolean;    // try the fonts loaded from files (default true)
   local?: boolean;     // try the installed font (default true)
   remote?: boolean;    // try the catalog download (default true, still needs remoteAllowed())
   gesture?: boolean;   // called from a click: queryLocalFonts may prompt
@@ -82,7 +123,7 @@ interface GetFontFileOptions {
 interface FontFile {
   bytes: Uint8Array;
   family: string;
-  source: "local" | "remote";
+  source: "loaded" | "local" | "remote";
   format: "ttf" | "otf" | "ttc" | "woff" | "woff2";
   embeddable: boolean | "restricted";   // false: bitmap-only or unreadable
   embedding: "installable" | "editable" | "preview-print" | "restricted";
@@ -99,7 +140,8 @@ interface FontFile {
 }
 ```
 
-- **Local** first: `queryLocalFonts()` blobs (Chromium desktop). It needs the `local-fonts`
+- **Loaded** first: a font the user loaded from a file (always a plain TTF/OTF, index 0).
+- **Local** next: `queryLocalFonts()` blobs (Chromium desktop). It needs the `local-fonts`
   permission already `"granted"`, or `gesture: true`; it never prompts silently. The face
   closest to weight/italic is chosen by style name (a full or PostScript name also matches).
   A font found only by canvas probing has no bytes: `null`.
@@ -136,7 +178,11 @@ pickCatalogFile(files, weight?, italic?): CatalogFile | undefined
 fetchFontBytes(url, fetchBytes?): Promise<Uint8Array | null>   // cached, gated
 isFontFileCached(url): Promise<boolean>                          // never hits the network
 parseFontInfo(bytes, index?): FontInfo | null   // format, numFonts, fsType, embedding, noSubsetting,
-                                                // bitmapOnly, weight, italic, variable, names
+                                                // bitmapOnly, weight, italic, variable, names, style, scripts
+scriptsOf(ulUnicodeRange: number[]): string[]   // "latin", "cyrillic", "han", "kana", "hangul"...
+woffToSfnt(bytes): Promise<Uint8Array | null>    // WOFF 1.0 -> TTF/OTF
+woff2Tables(bytes): Promise<Uint8Array | null>   // a WOFF2's name + OS/2 as a small sfnt (needs Brotli)
+extractFace(ttc, index): Uint8Array | null       // one .ttc face as a standalone font
 renameFace(bytes, family): Uint8Array    // the same bytes when already named, a TTC or junk
 isNamedAs(bytes, family): boolean        // ID 1 (and ID 16 if present) say `family`
 faceNames(bytes): { [nameId]: string }   // English name strings of a single font
@@ -184,6 +230,7 @@ readFontPrefs(), writeFontPrefs(patch)   // { local?, consent?, added? }
 const picker = createFontSelect({
   docFonts: ["Calibri", "Arial"],          // "In this document"
   local: true,                             // "Show my fonts…" (default true)
+  file: true,                              // "Load a font file…" (default true)
   remote: { provider: "google" },          // "Get more fonts…" (default off)
   container: editorWrap,                   // hosts the dialogs and the toast
   apply: (family) => setFont(family),
@@ -198,7 +245,8 @@ picker.fonts(); picker.has(name); picker.setDocFonts(names); picker.refresh(); p
 ```
 
 Groups: "In this document" (missing ones marked "(not installed)"), "Fonts" (drawable base
-fonts, installed fonts, added web fonts) and "More fonts" with the two action entries. An
+fonts, installed fonts, added web fonts, fonts loaded from files) and "More fonts" with the action
+entries (`SHOW_MINE_VALUE`, `LOAD_FILE_VALUE`, `GET_MORE_VALUE`). An
 action entry runs and the previous choice comes back; arrowing through a closed select never
 triggers one. Every picker on the page re-renders when another one finds or adds fonts.
 

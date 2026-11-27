@@ -25,6 +25,7 @@
     "prepare": "tsc -p tsconfig.json"
   },
   "devDependencies": {
+    "fake-indexeddb": "^6.2.8",
     "happy-dom": "^20.10.6",
     "typescript": "^7.0.2",
     "vitest": "^4.0.0"

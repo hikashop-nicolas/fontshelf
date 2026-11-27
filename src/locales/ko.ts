@@ -34,6 +34,12 @@ const strings: Partial<FontStrings> = {
   fontGroup_deva: "데바나가리",
   fontGroup_th: "태국어",
   close: "닫기",
+  fontsLoadFile: "글꼴 파일 불러오기…",
+  fontsFileInvalid: "{name}을(를) 글꼴로 읽을 수 없습니다.",
+  fontsFileTooBig: "{name}이(가) 너무 큽니다({size}MB 초과).",
+  fontsFileSessionOnly: "{name}은(는) 지금 사용할 수 있지만 다음에는 유지되지 않습니다.",
+  fontsChooseFace: "스타일 선택",
+  fontsAllFaces: "모든 스타일",
 };
 
 export default strings;

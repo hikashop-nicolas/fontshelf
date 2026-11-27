@@ -34,6 +34,12 @@ const strings: Partial<FontStrings> = {
   fontGroup_deva: "天城文",
   fontGroup_th: "泰文",
   close: "关闭",
+  fontsLoadFile: "加载字体文件…",
+  fontsFileInvalid: "无法将 {name} 作为字体读取。",
+  fontsFileTooBig: "{name} 太大（超过 {size} MB）。",
+  fontsFileSessionOnly: "{name} 现在可以使用，但下次不会保留。",
+  fontsChooseFace: "选择字形",
+  fontsAllFaces: "所有字形",
 };
 
 export default strings;

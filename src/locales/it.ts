@@ -34,6 +34,12 @@ const strings: Partial<FontStrings> = {
   fontGroup_deva: "Devanagari",
   fontGroup_th: "Thailandese",
   close: "Chiudi",
+  fontsLoadFile: "Carica un file di font…",
+  fontsFileInvalid: "Impossibile leggere {name} come font.",
+  fontsFileTooBig: "{name} è troppo grande (oltre {size} MB).",
+  fontsFileSessionOnly: "{name} si può usare ora ma non verrà conservato per la prossima volta.",
+  fontsChooseFace: "Scegli uno stile",
+  fontsAllFaces: "Tutti gli stili",
 };
 
 export default strings;

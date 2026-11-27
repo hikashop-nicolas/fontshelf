@@ -3,6 +3,7 @@
 import { GROUP_SAMPLE, WEB_FONTS } from "../catalog.js";
 import { cssFamily } from "../detect.js";
 import { loadWebFontPreviews, previewFamily } from "../google.js";
+import { MAX_FONT_FILE_BYTES, loadFontFile, readFontFaces, type FontFileFace } from "../loaded.js";
 import { addRemoteFamily } from "../registry.js";
 import { hasConsent, isRemoteEnabled, setConsent } from "../shared.js";
 import { fontT, fontUiLang } from "../strings.js";
@@ -27,6 +28,8 @@ const CSS = `
 .fontshelf-item { display: flex; align-items: baseline; gap: 10px; min-height: 36px; padding: 4px 8px; border: 1px solid transparent; border-radius: 6px; background: none; color: inherit; font-size: 17px; text-align: left; cursor: pointer; }
 .fontshelf-item:hover { background: var(--fontshelf-hover, #1f2329); border-color: var(--fontshelf-border, #4a4f57); }
 .fontshelf-sample { margin-left: auto; opacity: .8; }
+.fontshelf-item.fontshelf-face { font-size: 15px; }
+.fontshelf-file { position: fixed; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 .fontshelf-status { min-height: 1.3em; font-size: 12px; }
 .fontshelf-toast { position: absolute; z-index: 20; top: 8px; left: 12px; max-width: 300px; background: var(--fontshelf-toast-bg, #fff); color: var(--fontshelf-toast-fg, #222); border: 1px solid #c9c9c9; border-radius: 7px; box-shadow: 0 6px 22px rgba(0,0,0,.32); padding: 9px 11px; font: 13px/1.45 var(--fontshelf-ui-family, system-ui, sans-serif); }
 @media (prefers-reduced-motion: reduce) { .fontshelf-overlay, .fontshelf-toast { transition: none !important; } }
@@ -245,4 +248,96 @@ export function showFontToast(container: HTMLElement, text: string, ms = 2500): 
   el.textContent = text;
   container.appendChild(el);
   setTimeout(() => el.remove(), ms);
+}
+
+/** What the file picker offers: extensions plus the MIME types Android document providers report. */
+export const FONT_FILE_ACCEPT =
+  ".ttf,.otf,.ttc,.woff,.woff2,font/*,application/font-sfnt,application/x-font-ttf,application/x-font-otf,application/vnd.ms-opentype,application/font-woff,application/octet-stream";
+
+/** Open the system file picker for one font file; null when cancelled. */
+export function pickFontFile(opts: DialogOptions & { accept?: string } = {}): Promise<File | null> {
+  injectFontshelfStyles();
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = opts.accept ?? FONT_FILE_ACCEPT;
+    input.className = "fontshelf-file";
+    input.tabIndex = -1;
+    input.setAttribute("aria-hidden", "true");
+    let done = false;
+    const finish = (f: File | null): void => {
+      if (done) return;
+      done = true;
+      input.remove();
+      resolve(f);
+    };
+    input.addEventListener("change", () => finish(input.files?.[0] ?? null));
+    input.addEventListener("cancel", () => finish(null));
+    // In the DOM so a WebView (Capacitor) delivers the change event.
+    (opts.container ?? document.body).appendChild(input);
+    input.click();
+  });
+}
+
+/** The faces of a .ttc: resolves with the chosen indexes (all of them for "All faces"), or null. */
+export function openFaceDialog(faces: readonly FontFileFace[], opts: DialogOptions = {}): Promise<number[] | null> {
+  return new Promise((resolve) => {
+    let picked: number[] | null = null;
+    let first: HTMLButtonElement | null = null;
+    const { panel, actions, close } = shell("fontshelf-catalog", fontT("fontsChooseFace"), opts, () => resolve(picked), () => first);
+    const list = document.createElement("div");
+    list.className = "fontshelf-list";
+    // Upright before italic, light to heavy.
+    for (const f of [...faces].sort((a, b) => Number(a.italic) - Number(b.italic) || a.weight - b.weight)) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "fontshelf-item fontshelf-face";
+      b.textContent = f.fullName ?? `${f.family} ${f.style}`;
+      b.addEventListener("click", () => { picked = [f.index]; close(); });
+      list.appendChild(b);
+      first ??= b;
+    }
+    const cancel = button(fontT("cancel"));
+    const all = button(fontT("fontsAllFaces"), true);
+    cancel.addEventListener("click", close);
+    all.addEventListener("click", () => { picked = faces.map((f) => f.index); close(); });
+    actions.append(cancel, all);
+    panel.insertBefore(list, actions);
+  });
+}
+
+/**
+ * "Load a font file": the file picker, a face choice for a collection, then loadFontFile.
+ * Resolves with the family loaded, or null (cancelled or refused; `notify` says why).
+ */
+export async function requestFontFile(
+  opts: DialogOptions & { accept?: string; notify?: (text: string) => void; file?: File } = {},
+): Promise<string | null> {
+  const say = (text: string): void => (opts.notify ? opts.notify(text) : showFontToast(opts.container ?? document.body, text, 4000));
+  const file = opts.file ?? (await pickFontFile(opts));
+  if (!file) return null;
+  const name = file.name || "font";
+  if (file.size > MAX_FONT_FILE_BYTES) {
+    say(fontT("fontsFileTooBig", { name, size: MAX_FONT_FILE_BYTES / 1048576 }));
+    return null;
+  }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const faces = await readFontFaces(bytes, name);
+  if (!faces?.length) {
+    say(fontT("fontsFileInvalid", { name }));
+    return null;
+  }
+  let pick: number[] | undefined;
+  if (faces.length > 1) {
+    const chosen = await openFaceDialog(faces, opts);
+    if (!chosen) return null;
+    pick = chosen;
+  }
+  const r = await loadFontFile(bytes, { name, faces: pick });
+  if (!r.ok) {
+    say(r.error === "too-big" ? fontT("fontsFileTooBig", { name, size: MAX_FONT_FILE_BYTES / 1048576 }) : fontT("fontsFileInvalid", { name }));
+    return null;
+  }
+  if (!r.persisted) say(fontT("fontsFileSessionOnly", { name: r.family }));
+  return r.family;
 }

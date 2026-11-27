@@ -34,6 +34,12 @@ const strings: Partial<FontStrings> = {
   fontGroup_deva: "Devanagari",
   fontGroup_th: "Tayca",
   close: "Kapat",
+  fontsLoadFile: "Yazı tipi dosyası yükle…",
+  fontsFileInvalid: "{name} yazı tipi olarak okunamadı.",
+  fontsFileTooBig: "{name} çok büyük ({size} MB üzeri).",
+  fontsFileSessionOnly: "{name} şimdi kullanılabilir ama bir dahaki sefere saklanmayacak.",
+  fontsChooseFace: "Bir stil seçin",
+  fontsAllFaces: "Tüm stiller",
 };
 
 export default strings;

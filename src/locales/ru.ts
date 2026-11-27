@@ -34,6 +34,12 @@ const strings: Partial<FontStrings> = {
   fontGroup_deva: "Деванагари",
   fontGroup_th: "Тайский",
   close: "Закрыть",
+  fontsLoadFile: "Загрузить файл шрифта…",
+  fontsFileInvalid: "Не удалось прочитать {name} как шрифт.",
+  fontsFileTooBig: "{name} слишком большой (больше {size} МБ).",
+  fontsFileSessionOnly: "{name} можно использовать сейчас, но он не сохранится до следующего раза.",
+  fontsChooseFace: "Выберите начертание",
+  fontsAllFaces: "Все начертания",
 };
 
 export default strings;

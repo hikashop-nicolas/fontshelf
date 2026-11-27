@@ -21,8 +21,27 @@ export interface FontInfo {
   italic: boolean;
   variable: boolean;
   family: string | null;
+  /** Style name: typographic subfamily (ID 17), else ID 2 ("Bold Italic", "SemiBold"). */
+  style: string | null;
   fullName: string | null;
   postscriptName: string | null;
+  /** Scripts the OS/2 Unicode ranges claim ("latin", "cyrillic", "han", ...). */
+  scripts: string[];
+}
+
+// OS/2 ulUnicodeRange bits -> script.
+const RANGE_SCRIPTS: [number, string][] = [
+  [0, "latin"], [7, "greek"], [9, "cyrillic"], [10, "armenian"], [11, "hebrew"], [13, "arabic"], [15, "devanagari"],
+  [16, "bengali"], [17, "gurmukhi"], [18, "gujarati"], [20, "tamil"], [21, "telugu"], [22, "kannada"], [23, "malayalam"],
+  [24, "thai"], [25, "lao"], [26, "georgian"], [28, "hangul"], [49, "kana"], [50, "kana"], [56, "hangul"], [59, "han"],
+  [70, "tibetan"], [75, "ethiopic"], [80, "khmer"],
+];
+
+/** Scripts named by the four ulUnicodeRange words. */
+export function scriptsOf(ranges: readonly number[]): string[] {
+  const out: string[] = [];
+  for (const [bit, s] of RANGE_SCRIPTS) if (((ranges[bit >> 5] ?? 0) >>> (bit & 31)) & 1 && !out.includes(s)) out.push(s);
+  return out;
 }
 
 const tag = (v: DataView, o: number): string =>
@@ -59,7 +78,7 @@ function readName(v: DataView, off: number, len: number): Partial<Record<number,
     const id = v.getUint16(r + 6);
     const n = v.getUint16(r + 8);
     const s = strings + v.getUint16(r + 10);
-    if (![1, 4, 6, 16].includes(id) || s + n > v.byteLength) continue;
+    if (![1, 2, 4, 6, 16, 17].includes(id) || s + n > v.byteLength) continue;
     // Prefer Windows English, then any Unicode entry, then Mac Roman.
     const score = platform === 3 ? (lang === 0x409 ? 3 : 2) : platform === 0 ? 2 : platform === 1 && lang === 0 ? 1 : 0;
     if (!score || (rank[id] ?? 0) >= score) continue;
@@ -79,7 +98,7 @@ export function parseFontInfo(bytes: Uint8Array, index = 0): FontInfo | null {
   const head = tag(v, 0);
   const base: FontInfo = {
     format: "ttf", numFonts: 1, fsType: null, embedding: "installable", noSubsetting: false, bitmapOnly: false,
-    weight: null, italic: false, variable: false, family: null, fullName: null, postscriptName: null,
+    weight: null, italic: false, variable: false, family: null, style: null, fullName: null, postscriptName: null, scripts: [],
   };
   if (head === "wOFF" || head === "wOF2") return { ...base, format: head === "wOFF" ? "woff" : "woff2" };
   let off = 0;
@@ -110,12 +129,14 @@ export function parseFontInfo(bytes: Uint8Array, index = 0): FontInfo | null {
     base.noSubsetting = (base.fsType & 0x0100) !== 0;
     base.bitmapOnly = (base.fsType & 0x0200) !== 0;
     base.embedding = embeddingOf(base.fsType);
+    if (os2.n >= 58) base.scripts = scriptsOf([0, 1, 2, 3].map((i) => v.getUint32(os2.o + 42 + i * 4)));
     if (os2.n >= 64) base.italic = (v.getUint16(os2.o + 62) & 0x0001) !== 0;
   }
   const name = tables.get("name");
   if (name) {
     const n = readName(v, name.o, name.n);
     base.family = n[16] ?? n[1] ?? null;
+    base.style = n[17] ?? n[2] ?? null;
     base.fullName = n[4] ?? null;
     base.postscriptName = n[6] ?? null;
   }
